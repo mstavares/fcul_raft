@@ -1,7 +1,7 @@
 package server;
 
+import utilities.Log;
 import utilities.OnTimeListener;
-import utilities.TimeManager;
 import utilities.XmlSerializer;
 
 import java.rmi.RemoteException;
@@ -9,14 +9,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class Node implements OnTimeListener, OnLogListener {
+public class Node implements ServerInterface, OnTimeListener {
 
     private static final String NODE_CONFIG = "NodeConfig.xml";
-    private enum State {LEADER, CANDIDATE, FOLLOWER}
-    private List<String> logs = new ArrayList<String>();
+    private enum Role {LEADER, CANDIDATE, FOLLOWER}
     private NodeConnectionInfo connectionInfo;
     private Connection connection;
-    private State state;
+    private Log logs = new Log();
+    private Role role;
+    private int votes;
 
     /** Persistent state on all servers */
     private NodeConnectionInfo votedFor;
@@ -31,30 +32,59 @@ public class Node implements OnTimeListener, OnLogListener {
     private int[] matchIndex;
 
     public Node () throws RemoteException {
+        setFollower();
         HashMap<String, String> map = XmlSerializer.fileToMap(NODE_CONFIG);
         connectionInfo = new NodeConnectionInfo(map.get("ipAddress"), Integer.parseInt(map.get("port")));
-        connection = new Connection(new TimeManager(this), connectionInfo.getPort());
+        connection = new Connection(this, connectionInfo.getPort());
     }
 
     public void setLeader() {
-        state = State.LEADER;
+        role = Role.LEADER;
     }
 
     public void setCandidate() {
-        state = State.CANDIDATE;
+        role = Role.CANDIDATE;
     }
 
     public void setFollower() {
-        state = State.FOLLOWER;
+        role = Role.FOLLOWER;
     }
 
-    public void onAppendLog(String command) {
-        logs.add(command);
+
+    /* TODO Metodo appendEntries */
+    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, ArrayList<Log> entries, int leaderCommit) throws RemoteException {
+        if(role != Role.FOLLOWER) {
+            if (term > currentTerm) {
+                stepDown(term);
+            }
+        } else {
+            /* Escrever no log */
+        }
     }
 
+    /* TODO Metodo requestVote */
+    public void requestVote(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm) throws RemoteException {
+        if (term > currentTerm) {
+            stepDown(term);
+        }
+        if(term >= currentTerm && votedFor == null && logs.areMyLogsOutdated(lastLogIndex, lastLogTerm)) {
+
+        }
+    }
+
+    /* TODO pedir votos */
     public void timeout() {
-        currentTerm++;
         setCandidate();
+        currentTerm++;
+        votes++;
     }
+
+    private void stepDown(int term) {
+        setFollower();
+        currentTerm = term;
+        votedFor = null;
+        votes = 0;
+    }
+
 
 }

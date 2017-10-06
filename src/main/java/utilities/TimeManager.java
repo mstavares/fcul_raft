@@ -30,11 +30,15 @@ public class TimeManager {
         return random.nextInt(random.nextInt(maxTimeout - minTimeout + 1) + minTimeout);
     }
 
-    private void resetTimer() {
-        if(task != null)
-            task.cancel();
+    public void resetTimer() {
+        stopTimer();
         task = new Task();
         timer.schedule(task, generateNewTimeout());
+    }
+
+    public void stopTimer() {
+        if(task != null)
+            task.cancel();
     }
 
     private class Task extends TimerTask {

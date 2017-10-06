@@ -1,10 +1,7 @@
 package server;
 
 import client.ClientInterface;
-import utilities.OnTimeListener;
-import utilities.ThreadPool;
-import utilities.TimeManager;
-import utilities.XmlSerializer;
+import utilities.*;
 
 import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
@@ -22,14 +19,18 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
     private static final String NODES = "Nodes.xml";
     private List<NodeConnectionInfo> nodes = new ArrayList<NodeConnectionInfo>();
     private TimeManager electionTimer, heartbeatTimer;
+    private ServerInterface serverInterface;
+    private OnTimeListener timeListener;
     private ThreadPool threadPool;
 
-    public Connection(TimeManager electionTimer, int port) throws RemoteException {
+    Connection(Node node, int port) throws RemoteException {
         super();
         readNodesFile();
         registerService(port);
-        this.electionTimer = electionTimer;
-        heartbeatTimer = new TimeManager(this);
+        this.serverInterface = node;
+        this.timeListener = node;
+        //heartbeatTimer = new TimeManager(this);
+        electionTimer = new TimeManager(this);
         threadPool = new ThreadPool(nodes.size());
     }
 
@@ -52,6 +53,10 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         }
     }
 
+    public int getMajorityNumber() {
+        return nodes.size() / 2;
+    }
+
     public String request(String command) throws RemoteException {
         try {
             RequestPacket rp = new RequestPacket(command, getClientHost());
@@ -63,18 +68,24 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         return "SERVIDOR: " + command;
     }
 
-    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, ArrayList<String> entries, int leaderCommit) throws RemoteException {
-        System.out.println("RECEBI!!!");
-        /* TODO Metodo appendEntries */
+    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, ArrayList<Log> entries, int leaderCommit) throws RemoteException {
+        if (entries == null) {
+            electionTimer.resetTimer();
+        } else {
+            serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit);
+        }
     }
 
     public void requestVote(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm) throws RemoteException {
-        /* TODO Metodo requestVote */
+        serverInterface.requestVote(term, candidateId, lastLogIndex, lastLogIndex);
     }
 
     public void timeout() {
-        /* TODO Metodo que envia heartbeats */
+        timeListener.timeout();
+        if(heartbeatTimer != null) {
+            heartbeatTimer.stopTimer();
+            heartbeatTimer = null;
+        }
     }
-
 
 }

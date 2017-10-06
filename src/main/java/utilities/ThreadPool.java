@@ -14,11 +14,9 @@ import java.util.concurrent.Executors;
 
 public class ThreadPool {
 
-    private int numberOfThreads;
     private ExecutorService threadPool;
 
     public ThreadPool(int numberOfThreads) {
-        this.numberOfThreads = numberOfThreads;
         threadPool = Executors.newFixedThreadPool(numberOfThreads);
     }
 
