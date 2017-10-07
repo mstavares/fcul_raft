@@ -9,42 +9,50 @@ public class TimeManager {
 
     private OnTimeListener timeListener;
     private Random random = new Random();
-    private Timer timer = new Timer();
+    private Timer timer;// = new Timer();
+    private boolean heartbeat;
     private Task task;
     private int minTimeout, maxTimeout;
 
     public TimeManager(OnTimeListener timeListener) {
         this.timeListener = timeListener;
-        minTimeout = 3 * 1000;
-        maxTimeout = 5 * 1000;
+        this.heartbeat = false;
+        minTimeout = 5 * 1000;
+        maxTimeout = 7 * 1000;
         resetTimer();
     }
 
-    public TimeManager(OnTimeListener timeListener, int minTimeout, int maxTimeout) {
+    public TimeManager(OnTimeListener timeListener, boolean heartbeat) {
         this(timeListener);
-        this.minTimeout = minTimeout;
-        this.maxTimeout = maxTimeout;
+        this.heartbeat = heartbeat;
+        minTimeout = 2 * 1000;
+        maxTimeout = 4 * 1000;
     }
 
     private int generateNewTimeout() {
-        return random.nextInt(random.nextInt(maxTimeout - minTimeout + 1) + minTimeout);
+        return random.nextInt(maxTimeout - minTimeout + 1) + minTimeout;
+    }
+
+    public boolean isHeartbeat() {
+        return heartbeat;
     }
 
     public void resetTimer() {
         stopTimer();
         task = new Task();
+        timer = new Timer();
         timer.schedule(task, generateNewTimeout());
     }
 
     public void stopTimer() {
-        if(task != null)
-            task.cancel();
+        if(timer != null)
+        timer.cancel();
     }
 
     private class Task extends TimerTask {
 
         public void run() {
-            timeListener.timeout();
+            timeListener.timeout(TimeManager.this);
             resetTimer();
         }
     }

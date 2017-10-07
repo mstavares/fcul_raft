@@ -16,10 +16,12 @@ import java.util.Map;
 
 public class Connection extends UnicastRemoteObject implements ClientInterface, ServerInterface, OnTimeListener {
 
+    private static final String SERVICE_NAME = "raft";
     private static final String NODES = "Nodes.xml";
-    private List<NodeConnectionInfo> nodes = new ArrayList<NodeConnectionInfo>();
+    private List<NodeConnectionInfo> nodesIds = new ArrayList<NodeConnectionInfo>();
     private TimeManager electionTimer, heartbeatTimer;
     private ServerInterface serverInterface;
+    private ClientInterface clientInterface;
     private OnTimeListener timeListener;
     private ThreadPool threadPool;
 
@@ -28,23 +30,23 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         readNodesFile();
         registerService(port);
         this.serverInterface = node;
+        this.clientInterface = node;
         this.timeListener = node;
-        //heartbeatTimer = new TimeManager(this);
         electionTimer = new TimeManager(this);
-        threadPool = new ThreadPool(nodes.size());
+        threadPool = new ThreadPool(SERVICE_NAME, nodesIds.size());
     }
 
     private void readNodesFile() {
-        HashMap<String, String> map = XmlSerializer.fileToMap(NODES);
+        HashMap<String, String> map = XmlSerializer.readConfig(NODES);
         for (Map.Entry<String, String> e : map.entrySet()) {
-            nodes.add(new NodeConnectionInfo(e.getKey(), Integer.parseInt(e.getValue())));
+            nodesIds.add(new NodeConnectionInfo(e.getKey(), Integer.parseInt(e.getValue())));
         }
     }
 
     private void registerService(int port) {
         try {
             Registry registry = LocateRegistry.createRegistry(port);
-            registry.bind("server", this);
+            registry.bind(SERVICE_NAME, this);
             System.out.println("Server is ready for action!");
         } catch (RemoteException e) {
             e.printStackTrace();
@@ -53,39 +55,58 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         }
     }
 
-    public int getMajorityNumber() {
-        return nodes.size() / 2;
-    }
-
-    public String request(String command) throws RemoteException {
-        try {
-            RequestPacket rp = new RequestPacket(command, getClientHost());
-            System.out.println("SERVIDOR: " + rp.toString());
-            threadPool.execute(nodes);
-        } catch (ServerNotActiveException e) {
-            e.printStackTrace();
+    private void electionsTimeout() {
+        if(heartbeatTimer != null) {
+            heartbeatTimer.stopTimer();
+            heartbeatTimer = null;
         }
-        return "SERVIDOR: " + command;
     }
 
-    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, ArrayList<Log> entries, int leaderCommit) throws RemoteException {
+    public int getMajorityNumber() {
+        return nodesIds.size() / 2;
+    }
+
+    public String request(String command) throws RemoteException, ServerNotActiveException {
+        return clientInterface.request(command);
+    }
+
+    public void sendEntry(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) {
+        threadPool.sendEntries(term, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit, nodesIds);
+    }
+
+    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) throws RemoteException, ServerNotActiveException {
         if (entries == null) {
+            Debugger.log("Recebi um heartbeat de: " + getClientHost());
             electionTimer.resetTimer();
         } else {
             serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit);
         }
     }
 
+    public void askForVotes(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm) {
+        electionsTimeout();
+        threadPool.askForVotes(term, candidateId, lastLogIndex, lastLogTerm, nodesIds);
+    }
+
     public void requestVote(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm) throws RemoteException {
         serverInterface.requestVote(term, candidateId, lastLogIndex, lastLogIndex);
     }
 
-    public void timeout() {
-        timeListener.timeout();
-        if(heartbeatTimer != null) {
-            heartbeatTimer.stopTimer();
-            heartbeatTimer = null;
-        }
+    public void sendVote(NodeConnectionInfo candidateId, boolean vote) {
+        threadPool.sendVoteReply(candidateId, vote);
+    }
+
+    public void onVoteReceive(boolean vote) throws RemoteException {
+        serverInterface.onVoteReceive(vote);
+    }
+
+    public void sendHeartbeat() {
+        electionTimer.resetTimer();
+        heartbeatTimer = new TimeManager(this, true);
+    }
+
+    public void timeout(TimeManager timeManager) {
+        timeListener.timeout(timeManager);
     }
 
 }

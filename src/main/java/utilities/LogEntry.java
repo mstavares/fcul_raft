@@ -1,6 +1,8 @@
 package utilities;
 
-public class LogEntry {
+import java.io.Serializable;
+
+public class LogEntry implements Serializable {
 
     private String command;
     private int term;

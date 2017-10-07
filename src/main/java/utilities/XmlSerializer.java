@@ -8,7 +8,7 @@ import java.util.HashMap;
 
 public class XmlSerializer {
 
-    public static HashMap<String, String> fileToMap(String fileName) {
+    public static HashMap<String, String> readConfig(String fileName) {
         HashMap<String,String> map = null;
         try {
             XMLDecoder decoder = new XMLDecoder(new BufferedInputStream(new FileInputStream(fileName)));
@@ -20,7 +20,7 @@ public class XmlSerializer {
         return map;
     }
 
-    public static void mapToFile(String fileName, HashMap<String, String> map) {
+    public static void saveConfig(String fileName, HashMap<String, String> map) {
         try {
             XMLEncoder encoder = new XMLEncoder(new BufferedOutputStream(new FileOutputStream(fileName)));
             encoder.writeObject(map);

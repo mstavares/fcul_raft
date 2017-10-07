@@ -28,6 +28,6 @@ public class RequestPacket {
 
     @Override
     public String toString() {
-        return timestamp.toString() + " " + command + " " + ip;
+        return "comando: " + command + " de: " + ip;
     }
 }

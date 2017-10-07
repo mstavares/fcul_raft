@@ -15,15 +15,22 @@ public class Log {
     }
 
     public boolean areMyLogsOutdated(int lastLogIndex, int lastLogTerm) {
-        return lastLogIndex >= getLastLogIndex() && lastLogTerm > getLastLogTerm();
+        return lastLogIndex >= getLastLogIndex() && lastLogTerm >= getLastLogTerm();
     }
 
-    private int getLastLogIndex() {
-        return entries.size() - 1;
+    public int getLastLogIndex() {
+        if(entries.size() == 0)
+            return 0;
+        else
+            return entries.size() - 1;
     }
 
-    private int getLastLogTerm() {
-        return entries.get(getLastLogIndex()).getTerm();
+    public int getLastLogTerm() {
+        int lastLogIndex = getLastLogIndex();
+        if(lastLogIndex == 0)
+            return lastLogIndex;
+        else
+            return entries.get(getLastLogIndex()).getTerm();
     }
 
 }

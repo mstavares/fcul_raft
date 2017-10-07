@@ -21,4 +21,9 @@ public class NodeConnectionInfo implements Serializable {
         return port;
     }
 
+    @Override
+    public String toString() {
+        return "ip: " + ipAddress + " port: " + port;
+    }
+
 }

@@ -1,5 +1,5 @@
 package utilities;
 
 public interface OnTimeListener {
-    void timeout();
+    void timeout(TimeManager timeManager);
 }

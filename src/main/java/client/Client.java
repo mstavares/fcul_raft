@@ -1,23 +1,25 @@
 package client;
 
-import utilities.ThreadPool;
 import utilities.XmlSerializer;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.ServerNotActiveException;
 import java.util.HashMap;
 import java.util.Scanner;
 
 public class Client {
 
+    private static final String SERVICE_NAME = "raft";
+
     public static void main(String[] args) {
         try {
 
-            HashMap<String, String> map = XmlSerializer.fileToMap("Nodes.xml");
+            HashMap<String, String> map = XmlSerializer.readConfig("Nodes.xml");
             Registry registry = LocateRegistry.getRegistry("127.0.0.1", 1099);
-            ClientInterface stub = (ClientInterface) registry.lookup("server");
+            ClientInterface stub = (ClientInterface) registry.lookup(SERVICE_NAME);
 
             Scanner scan = new Scanner(System.in);
             String inputKey;
@@ -33,6 +35,8 @@ public class Client {
         } catch (RemoteException e) {
             e.printStackTrace();
         } catch (NotBoundException e) {
+            e.printStackTrace();
+        } catch (ServerNotActiveException e) {
             e.printStackTrace();
         }
 
