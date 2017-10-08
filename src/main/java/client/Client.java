@@ -10,6 +10,13 @@ import java.rmi.server.ServerNotActiveException;
 import java.util.HashMap;
 import java.util.Scanner;
 
+/**
+ * Esta classe liga-se aleatoriamente a um dos servidores carregados da lista.
+ * Se esse servidor nao for o lider a resposta ao pedido deve conter o endereço
+ * do lider.
+ * Se o servidor for o lider, a respota deverá ser um código (ver secção 8 do paper)
+ */
+
 public class Client {
 
     private static final String SERVICE_NAME = "raft";
@@ -25,6 +32,8 @@ public class Client {
             String inputKey;
 
             for (;;) {
+
+                /** Este bocado de codigo envia os pedidos para o servidor */
                 System.out.print("\nCommand$ ");
                 inputKey = scan.next();
                 String teste = stub.request(inputKey);

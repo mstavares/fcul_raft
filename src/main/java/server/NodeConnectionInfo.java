@@ -3,6 +3,7 @@ package server;
 
 import java.io.Serializable;
 
+/** Este classe é um modelo para as configurações dos servidores */
 public class NodeConnectionInfo implements Serializable {
 
     private String ipAddress;

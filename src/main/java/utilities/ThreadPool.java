@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/** Esta classe manipula uma série de threads de forma e enviar
+ *  os pedidos para todos os servidores.
+ *  Os pedidos podem ser heartbeats, entries e votes.
+ */
 public class ThreadPool {
 
     private String serviceName;
@@ -40,6 +44,8 @@ public class ThreadPool {
     }
 
 
+    /** Este worker serve de classe mãe para os restantes workers,
+     *  evitando assim duplicação de código. */
     private class Worker {
 
         int term, logIndex, logTerm;
@@ -61,6 +67,9 @@ public class ThreadPool {
 
     }
 
+    /** Este worker é responsável por enviar os heartbeats e as entries
+     * para os outros servidores.
+     */
     private class EntriesWorker extends Worker implements Runnable {
 
         int leaderCommit;
@@ -85,6 +94,9 @@ public class ThreadPool {
         }
     }
 
+    /** Este worker é responsável por enviar os pedidos de votos
+     *  para os outros servidores.
+     */
     private class VotesWorker extends Worker implements Runnable {
 
         VotesWorker(NodeConnectionInfo connectionId, int term, NodeConnectionInfo myId, int logIndex, int logTerm) {
@@ -104,6 +116,9 @@ public class ThreadPool {
         }
     }
 
+    /** Este worker é responsável por responder ao servidor que
+     *  fez o pedido de votos.
+     */
     private class ReplierVotesWorker extends Worker implements Runnable {
 
         private boolean vote;

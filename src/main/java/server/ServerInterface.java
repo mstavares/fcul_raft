@@ -7,6 +7,7 @@ import java.rmi.RemoteException;
 import java.rmi.server.ServerNotActiveException;
 import java.util.ArrayList;
 
+/** Interface RMI servidor -> servidor */
 public interface ServerInterface extends Remote {
 
     void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex,

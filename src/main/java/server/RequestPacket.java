@@ -2,6 +2,7 @@ package server;
 
 import java.sql.Timestamp;
 
+/** Esta classe é um modelo para os pedidos enviados pelos clientes */
 public class RequestPacket {
 
     private Timestamp timestamp;
