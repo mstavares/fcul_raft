@@ -15,4 +15,9 @@ public class LogEntry implements Serializable {
     public int getTerm() {
         return term;
     }
+
+    @Override
+    public String toString() {
+        return "Comando: " + command + " term: " + term;
+    }
 }

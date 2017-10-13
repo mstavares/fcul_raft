@@ -9,7 +9,7 @@ public class TimeManager {
 
     private OnTimeListener timeListener;
     private Random random = new Random();
-    private Timer timer;// = new Timer();
+    private Timer timer;
     private boolean heartbeat;
     private Task task;
     private int minTimeout, maxTimeout;
@@ -17,16 +17,16 @@ public class TimeManager {
     public TimeManager(OnTimeListener timeListener) {
         this.timeListener = timeListener;
         this.heartbeat = false;
-        minTimeout = 5 * 1000;
-        maxTimeout = 7 * 1000;
+        minTimeout = 6 * 1000;
+        maxTimeout = 8 * 1000;
         resetTimer();
     }
 
     public TimeManager(OnTimeListener timeListener, boolean heartbeat) {
         this(timeListener);
         this.heartbeat = heartbeat;
-        minTimeout = 2 * 1000;
-        maxTimeout = 4 * 1000;
+        minTimeout = 1 * 1000;
+        maxTimeout = 2 * 1000;
     }
 
     private int generateNewTimeout() {
@@ -46,7 +46,7 @@ public class TimeManager {
 
     public void stopTimer() {
         if(timer != null)
-        timer.cancel();
+            timer.cancel();
     }
 
     private class Task extends TimerTask {

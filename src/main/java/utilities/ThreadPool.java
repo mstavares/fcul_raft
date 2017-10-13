@@ -81,11 +81,12 @@ public class ThreadPool {
 
         public void run() {
             try {
+                Debugger.log("ENTREI");
                 Registry registry = LocateRegistry.getRegistry(connectionId.getIpAddress(), connectionId.getPort());
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
                 stub.appendEntries(term, myId, logIndex, logTerm, entries, leaderCommit);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             } catch (ServerNotActiveException e) {
@@ -109,7 +110,7 @@ public class ThreadPool {
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
                 stub.requestVote(term, myId, logIndex, logTerm);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             }
@@ -134,7 +135,7 @@ public class ThreadPool {
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
                 stub.onVoteReceive(vote);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             }

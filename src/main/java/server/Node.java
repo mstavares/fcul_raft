@@ -34,7 +34,7 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
     private int[] nextIndex;
     private int[] matchIndex;
 
-    Node () throws RemoteException {
+    Node() throws RemoteException {
         setFollower();
         HashMap<String, String> map = XmlSerializer.readConfig(NODE_CONFIG);
         Debugger.log("A minha config ip: " + map.get("ipAddress") + " porta: " + map.get("port"));
@@ -44,16 +44,19 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
 
     /** Este método define o estado do servidor como lider */
     private void setLeader() {
+        Debugger.log("Alterei o meu estado para LEADER!");
         role = Role.LEADER;
     }
 
     /** Este método define o estado do servidor como candidato */
     private void setCandidate() {
+        Debugger.log("Alterei o meu estado para CANDIDATE!");
         role = Role.CANDIDATE;
     }
 
     /** Este método define o estado do servidor como follower */
     private void setFollower() {
+        Debugger.log("Alterei o meu estado para FOLLOWER!");
         role = Role.FOLLOWER;
     }
 
@@ -61,23 +64,43 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
     public String request(String command) throws ServerNotActiveException {
         RequestPacket rp = new RequestPacket(command, RemoteServer.getClientHost());
         Debugger.log("Recebi o request: " + rp.toString());
+        logs.add(new LogEntry(command, currentTerm));
+        Debugger.log("Logs: " + logs.toString());
+        launchThread();
         return "SERVIDOR: " + rp.toString();
     }
 
+    private void launchThread() {
+        Debugger.log("Antes");
+        new Runnable() {
+            public void run() {
+                connection.sendEntry(currentTerm, nodeId, logs.getLastLogIndex(), logs.getLastLogTerm(), logs, commitIndex);
+            }
+        };
+        Debugger.log("Depois");
+    }
+
+
     /** Este método recebe os pedidos de appendEntries da camada de ligação */
     public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) throws RemoteException {
-        if(role != Role.FOLLOWER) {
-            if (term > currentTerm) {
-                stepDown(term);
-            }
-        } else {
-            /* TODO replicar logs */
+        Debugger.log(logs.toString());
+
+        if (term > currentTerm) {
+            stepDown(term);
         }
+
+        if(term < currentTerm || logs.getTermOfIndex(prevLogIndex) != prevLogTerm) {
+            // false
+        } else {
+            logs.appendLogs(entries);
+        }
+
     }
 
     /** Este método recebe os pedidos de votos da camada de ligação */
     public void requestVote(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm) throws RemoteException {
         if (term > currentTerm) {
+            Debugger.log("term: " + term + " currentTerm: " + currentTerm);
             Debugger.log("Vou alterar o meu estado de " + role.toString() + " para " + Role.FOLLOWER.toString());
             stepDown(term);
         }
@@ -98,9 +121,11 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
         Debugger.log("Tenho " + votes + " votos");
         if(votes >= connection.getMajorityNumber()) {
             Debugger.log("Fui eleito como lider!");
+            connection.disableElectionTimer();
             votes = 0;
             setLeader();
             sendHeartbeat();
+            connection.disableElectionTimer();
             connection.enableHeartbeatTimer();
         }
     }
@@ -108,10 +133,12 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
     /** Este método é invocado quando um timeout ocorre. É necessário
      * verificar que tipo de timeout é, se de heartbeat ou de eleições */
     public void timeout(TimeManager timeManager) {
-        if (timeManager.isHeartbeat())
+        if (timeManager.isHeartbeat()) {
             sendHeartbeat();
-        else
+        } else {
+            votes = 0;
             electionsTimeout();
+        }
     }
 
     /** Este método envia um heartbeat para os outros servidores */
@@ -121,11 +148,14 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
 
     /** Este método trata da iniciação dos processos de eleições */
     public void electionsTimeout() {
-        Debugger.log("Vou iniciar uma eleicao");
-        setCandidate();
-        currentTerm++;
-        votes++;
-        connection.askForVotes(currentTerm, nodeId, logs.getLastLogIndex(), logs.getLastLogTerm());
+        Debugger.log("electionsTimeout");
+        if(role != Role.LEADER) {
+            Debugger.log("Vou iniciar uma eleicao, vou alterar o meu termo para: " + (currentTerm + 1));
+            setCandidate();
+            currentTerm++;
+            votes++;
+            connection.askForVotes(currentTerm, nodeId, logs.getLastLogIndex(), logs.getLastLogTerm());
+        }
     }
 
     /** Este método é invocado durante um processo de eleição em que
@@ -133,6 +163,7 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
      * é superior ao dele.
      */
     private void stepDown(int term) {
+        connection.enableElectionTimer();
         setFollower();
         currentTerm = term;
         votedFor = null;

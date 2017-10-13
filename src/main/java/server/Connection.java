@@ -71,7 +71,10 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
 
     /** Este método devolve o número de servidores correspondentes à maioria */
     public int getMajorityNumber() {
-        return nodesIds.size() / 2;
+        if(nodesIds.size() == 1)
+            return nodesIds.size() + 1;
+        else
+            return nodesIds.size() / 2 + 1;
     }
 
     /** Este método recebe os pedidos RMI do cliente */
@@ -88,12 +91,10 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
      *  Se o pedido vier com o entries a null quer dizer que é um heartbeat
      */
     public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) throws RemoteException, ServerNotActiveException {
-        if (entries == null) {
-            Debugger.log("Recebi um heartbeat de: " + getClientHost());
-            electionTimer.resetTimer();
-        } else {
+        Debugger.log("Recebi um appendEntries de: " + getClientHost());
+        electionTimer.resetTimer();
+        if(entries != null)
             serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit);
-        }
     }
 
     /** Este método envia um pedido de voto aos outros servidores */
@@ -119,8 +120,17 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
 
     /** Este método ativa o timer correspondente aos heartbeats */
     public void enableHeartbeatTimer() {
-        electionTimer.resetTimer();
         heartbeatTimer = new TimeManager(this, true);
+    }
+
+
+    public void disableElectionTimer() {
+        electionTimer.stopTimer();
+    }
+
+    public void enableElectionTimer() {
+        electionTimer.stopTimer();
+        electionTimer = new TimeManager(this);
     }
 
     /** Este método é invocado quando um timeout ocorre, quer seja de eleição quer seja de heartbeat */
