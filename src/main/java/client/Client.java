@@ -24,8 +24,10 @@ public class Client {
     public static void main(String[] args) {
         try {
 
+
             HashMap<String, String> map = XmlSerializer.readConfig("Nodes.xml");
-            Registry registry = LocateRegistry.getRegistry("127.0.0.1", 1099);
+
+            Registry registry = LocateRegistry.getRegistry("192.168.0.65", 1099);
             ClientInterface stub = (ClientInterface) registry.lookup(SERVICE_NAME);
 
             Scanner scan = new Scanner(System.in);

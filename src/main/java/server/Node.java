@@ -6,6 +6,7 @@ import utilities.*;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
@@ -57,6 +58,7 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
     /** Este método define o estado do servidor como follower */
     private void setFollower() {
         Debugger.log("Alterei o meu estado para FOLLOWER!");
+        //connection.disableHeartbeatTimer();
         role = Role.FOLLOWER;
     }
 
@@ -66,35 +68,43 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
         Debugger.log("Recebi o request: " + rp.toString());
         logs.add(new LogEntry(command, currentTerm));
         Debugger.log("Logs: " + logs.toString());
-        launchThread();
+        execute();
         return "SERVIDOR: " + rp.toString();
     }
 
-    private void launchThread() {
-        Debugger.log("Antes");
+    private void execute() {
         new Runnable() {
             public void run() {
                 connection.sendEntry(currentTerm, nodeId, logs.getLastLogIndex(), logs.getLastLogTerm(), logs, commitIndex);
             }
-        };
-        Debugger.log("Depois");
+        }.run();
     }
-
 
     /** Este método recebe os pedidos de appendEntries da camada de ligação */
     public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) throws RemoteException {
-        Debugger.log(logs.toString());
-
+        Debugger.log("appendEntries" + logs.toString());
+        Debugger.log("entries " + logs.toString());
         if (term > currentTerm) {
             stepDown(term);
         }
-
-        if(term < currentTerm || logs.getTermOfIndex(prevLogIndex) != prevLogTerm) {
-            // false
+        if(term < currentTerm || !logs.isEmpty() && logs.getTermOfIndex(prevLogIndex) != prevLogTerm) {
+            Debugger.log("logs.getTermOfIndex(prevLogIndex): " + logs.getTermOfIndex(prevLogIndex));
+            Debugger.log("prevLogTerm: " + prevLogTerm);
+            connection.sendAppendEntriesReply(leaderId, -1, currentTerm, false);
         } else {
-            logs.appendLogs(entries);
+            Debugger.log("Vou fazer append de um log!");
+            ArrayList<Integer> updates = logs.appendLogs(entries);
+            Debugger.log("updates " + updates.size());
+            for(int update : updates) {
+                Debugger.log("Vou responder");
+                Debugger.log(logs.toString());
+                connection.sendAppendEntriesReply(leaderId, update, currentTerm, true);
+            }
         }
+    }
 
+    public void appendEntriesReply(int index, int term, boolean success) {
+        Debugger.log("Indice: " + index + " termo: " + term + " sucesso: " + success);
     }
 
     /** Este método recebe os pedidos de votos da camada de ligação */
@@ -143,12 +153,17 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
 
     /** Este método envia um heartbeat para os outros servidores */
     private void sendHeartbeat() {
-        connection.sendEntry(currentTerm, nodeId, logs.getLastLogIndex(), logs.getLastLogTerm(), null, commitIndex);
+        new Runnable() {
+            public void run() {
+                connection.sendEntry(currentTerm, nodeId, logs.getLastLogIndex(), logs.getLastLogTerm(), null, commitIndex);
+            }
+        }.run();
     }
 
     /** Este método trata da iniciação dos processos de eleições */
     public void electionsTimeout() {
         Debugger.log("electionsTimeout");
+        connection.disableHeartbeatTimer();
         if(role != Role.LEADER) {
             Debugger.log("Vou iniciar uma eleicao, vou alterar o meu termo para: " + (currentTerm + 1));
             setCandidate();
@@ -164,6 +179,7 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
      */
     private void stepDown(int term) {
         connection.enableElectionTimer();
+        connection.disableHeartbeatTimer();
         setFollower();
         currentTerm = term;
         votedFor = null;

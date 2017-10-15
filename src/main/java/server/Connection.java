@@ -84,6 +84,8 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
 
     /** Este método envia os logs para os outros servidores */
     public void sendEntry(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) {
+        if(entries != null)
+            Debugger.log("ola");
         threadPool.sendEntries(term, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit, nodesIds);
     }
 
@@ -95,6 +97,14 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         electionTimer.resetTimer();
         if(entries != null)
             serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit);
+    }
+
+    public void appendEntriesReply(int index, int term, boolean success) throws RemoteException {
+        serverInterface.appendEntriesReply(index, term, success);
+    }
+
+    public void sendAppendEntriesReply(NodeConnectionInfo leaderId, int index, int term, boolean success) {
+        threadPool.sendEntriesReply(leaderId, index, term, success);
     }
 
     /** Este método envia um pedido de voto aos outros servidores */
@@ -123,10 +133,15 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         heartbeatTimer = new TimeManager(this, true);
     }
 
+    public void disableHeartbeatTimer() {
+        if(heartbeatTimer != null)
+            heartbeatTimer.stopTimer();
+    }
 
     public void disableElectionTimer() {
         electionTimer.stopTimer();
     }
+
 
     public void enableElectionTimer() {
         electionTimer.stopTimer();

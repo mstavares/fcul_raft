@@ -32,8 +32,14 @@ public class ThreadPool {
         }
     }
 
+    public void sendEntriesReply(NodeConnectionInfo leaderId, int logIndex, int term, boolean success) {
+        ExecutorService threadPool = Executors.newFixedThreadPool(1);
+        threadPool.execute(new ReplierEntries(leaderId, logIndex, term, success));
+    }
+
     public void askForVotes(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm, List<NodeConnectionInfo> nodesId) {
         for (NodeConnectionInfo connectionId : nodesId) {
+            Debugger.log(candidateId.toString());
             threadPool.execute(new VotesWorker(connectionId, term, candidateId, lastLogIndex, lastLogTerm));
         }
     }
@@ -81,15 +87,38 @@ public class ThreadPool {
 
         public void run() {
             try {
-                Debugger.log("ENTREI");
                 Registry registry = LocateRegistry.getRegistry(connectionId.getIpAddress(), connectionId.getPort());
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
                 stub.appendEntries(term, myId, logIndex, logTerm, entries, leaderCommit);
             } catch (RemoteException e) {
-                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                e.printStackTrace();
+                //Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             } catch (ServerNotActiveException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private class ReplierEntries extends Worker implements Runnable {
+
+        boolean success;
+
+        ReplierEntries(NodeConnectionInfo connectionId, int logIndex, int term, boolean success) {
+            super(connectionId, term, null, logIndex, 0, null);
+            this.success = success;
+        }
+
+        public void run() {
+            try {
+                Registry registry = LocateRegistry.getRegistry(connectionId.getIpAddress(), connectionId.getPort());
+                ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
+                stub.appendEntriesReply(logIndex, term, success);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+                //Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+            } catch (NotBoundException e) {
                 e.printStackTrace();
             }
         }
@@ -110,7 +139,8 @@ public class ThreadPool {
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
                 stub.requestVote(term, myId, logIndex, logTerm);
             } catch (RemoteException e) {
-                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                e.printStackTrace();
+                //Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             }
@@ -135,7 +165,8 @@ public class ThreadPool {
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
                 stub.onVoteReceive(vote);
             } catch (RemoteException e) {
-                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                e.printStackTrace();
+                //Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             }

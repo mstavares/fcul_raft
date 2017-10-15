@@ -1,11 +1,12 @@
 package utilities;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /** Esta classe encapsula o registo de logs dos servidores.
  * Usa o Delegate Design Pattern
  * */
-public class Log {
+public class Log implements Serializable {
 
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
     private ArrayList<LogEntry> entries = new ArrayList<LogEntry>();
@@ -18,13 +19,17 @@ public class Log {
         entries.set(position, logEntry);
     }
 
-    public LogEntry getLogEntry(int position) {
+    public LogEntry getEntry(int position) {
         return entries.get(position);
     }
 
     /** Este método verifica se os meus logs estão outdated, se estiverem não posso ser lider */
     public boolean areMyLogsOutdated(int lastLogIndex, int lastLogTerm) {
         return lastLogIndex >= getLastLogIndex() && lastLogTerm >= getLastLogTerm();
+    }
+
+    public boolean isEmpty() {
+        return entries.size() == 0;
     }
 
     /** Este método envia o indice do último log adicionado */
@@ -46,21 +51,32 @@ public class Log {
 
     /** Este métdo devolve o termo de uma dada posição */
     public int getTermOfIndex(int position) {
-        return entries.get(position).getTerm();
+        if(entries.size() == 0)
+            return 0;
+        else
+            return entries.get(position).getTerm();
     }
 
     public ArrayList<LogEntry> getEntries() {
         return entries;
     }
 
-    public void appendLogs(Log newEntries) {
+    public ArrayList<Integer> appendLogs(Log newEntries) {
+        Debugger.log("appendLogs: " + newEntries.toString());
+        ArrayList<Integer> updates = new ArrayList<Integer>();
         for(int i = 0; i < newEntries.getEntries().size() - 1; i++) {
-            if(entries.get(i).getTerm() != newEntries.getLogEntry(i).getTerm()) {
+            Debugger.log("ENTREI 1");
+            if(!entries.isEmpty() && entries.get(i).getTerm() != newEntries.getEntry(i).getTerm()) {
+                Debugger.log("ENTREI 2");
                 cleanLogsSince(i);
-                appendLogsSince(newEntries.getEntries(), i);
+                appendLogsSince(updates, newEntries.getEntries(), i);
                 break;
+            } else {
+                entries.add(newEntries.getEntry(i));
+                updates.add(i);
             }
         }
+        return updates;
     }
 
     private void cleanLogsSince(int position) {
@@ -69,9 +85,10 @@ public class Log {
         }
     }
 
-    private void appendLogsSince(ArrayList<LogEntry> newEntries, int position) {
+    private void appendLogsSince(ArrayList<Integer> updates, ArrayList<LogEntry> newEntries, int position) {
         for(int i = position; i < newEntries.size() - 1; i++) {
             entries.add(newEntries.get(i));
+            updates.add(i);
         }
     }
 
