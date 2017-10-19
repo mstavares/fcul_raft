@@ -13,11 +13,13 @@ import java.util.HashMap;
  * Esta class é responsável por enviar, receber e interpretar todos os tipos de pedidos,
  * quer sejam dos servidores quer sejam dos clientes.
  */
-public class Node implements ServerInterface, ClientInterface, OnTimeListener {
+public class Node implements ServerInterface, ClientInterface, ConnectionInterface, OnTimeListener {
 
     private static final String NODE_CONFIG = "NodeConfig.xml";
+    private ArrayList<RequestPacket> requests = new ArrayList<RequestPacket>();
     private enum Role {LEADER, CANDIDATE, FOLLOWER}
-    private NodeConnectionInfo nodeId;
+    private NodeConnectionInfo nodeId, leaderId;
+    private boolean processingRequest = false;
     private Connection connection;
     private Log logs = new Log();
     private Role role;
@@ -58,53 +60,66 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
     /** Este método define o estado do servidor como follower */
     private void setFollower() {
         Debugger.log("Alterei o meu estado para FOLLOWER!");
-        //connection.disableHeartbeatTimer();
         role = Role.FOLLOWER;
     }
 
     /** Este método recebe os pedidos dos clientes provenientes da camada de ligação. */
     public String request(String command) throws ServerNotActiveException {
-        RequestPacket rp = new RequestPacket(command, RemoteServer.getClientHost());
-        Debugger.log("Recebi o request: " + rp.toString());
-        logs.add(new LogEntry(command, currentTerm));
-        Debugger.log("Logs: " + logs.toString());
-        execute();
-        return "SERVIDOR: " + rp.toString();
+        if(role == Role.LEADER) {
+            RequestPacket rp = new RequestPacket(command, RemoteServer.getClientHost());
+            Debugger.log("Recebi o request: " + rp.toString());
+            logs.add(new LogEntry(command, currentTerm));
+            Debugger.log("Logs: " + logs.toString());
+            return processRequest(rp);
+        } else {
+            if(leaderId != null) {
+                return leaderId.getIpAddress()+ ":" +leaderId.getPort();
+            } else {
+                return "O raft está neste momento a eleger o lider.";
+            }
+        }
+    }
+
+    private String processRequest(RequestPacket rp) {
+        if(!processingRequest) {
+            execute();
+            return "O pedido " + rp.toString() + " foi adicionado à fila";
+        } else {
+            requests.add(rp);
+            return"O pedido " + rp.toString() + " foi adicionado à fila";
+        }
     }
 
     private void execute() {
         new Runnable() {
             public void run() {
-                connection.sendEntry(currentTerm, nodeId, logs.getLastLogIndex(), logs.getLastLogTerm(), logs, commitIndex);
+                connection.sendEntry(currentTerm, nodeId, logs.getLastLogIndex(), logs.getPrevLogTerm(), logs.getLastEntry(), commitIndex);
             }
         }.run();
     }
 
+    public void updateLeaderId(NodeConnectionInfo leaderId) {
+        this.leaderId = leaderId;
+    }
+
     /** Este método recebe os pedidos de appendEntries da camada de ligação */
-    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) throws RemoteException {
-        Debugger.log("appendEntries" + logs.toString());
-        Debugger.log("entries " + logs.toString());
+    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit) throws RemoteException {
         if (term > currentTerm) {
             stepDown(term);
         }
-        if(term < currentTerm || !logs.isEmpty() && logs.getTermOfIndex(prevLogIndex) != prevLogTerm) {
+        if(term < currentTerm || !logs.isEmpty() && logs.getLastLogTerm()/*logs.getTermOfIndex(prevLogIndex)*/ /*logs.getPrevLogTerm()*/ != prevLogTerm) {
             Debugger.log("logs.getTermOfIndex(prevLogIndex): " + logs.getTermOfIndex(prevLogIndex));
             Debugger.log("prevLogTerm: " + prevLogTerm);
-            connection.sendAppendEntriesReply(leaderId, -1, currentTerm, false);
+            connection.sendAppendEntriesReply(leaderId, currentTerm, false);
         } else {
             Debugger.log("Vou fazer append de um log!");
-            ArrayList<Integer> updates = logs.appendLogs(entries);
-            Debugger.log("updates " + updates.size());
-            for(int update : updates) {
-                Debugger.log("Vou responder");
-                Debugger.log(logs.toString());
-                connection.sendAppendEntriesReply(leaderId, update, currentTerm, true);
-            }
+            logs.appendLog(entry);
+            connection.sendAppendEntriesReply(leaderId, currentTerm, true);
         }
     }
 
-    public void appendEntriesReply(int index, int term, boolean success) {
-        Debugger.log("Indice: " + index + " termo: " + term + " sucesso: " + success);
+    public void appendEntriesReply(int term, boolean success) {
+        Debugger.log("Termo: " + term + " sucesso: " + success);
     }
 
     /** Este método recebe os pedidos de votos da camada de ligação */
@@ -126,17 +141,20 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
 
     /** Este método recebe a resposta aos pedidos de votos */
     public void onVoteReceive(boolean vote) {
-        if(vote)
-            votes++;
-        Debugger.log("Tenho " + votes + " votos");
-        if(votes >= connection.getMajorityNumber()) {
-            Debugger.log("Fui eleito como lider!");
-            connection.disableElectionTimer();
-            votes = 0;
-            setLeader();
-            sendHeartbeat();
-            connection.disableElectionTimer();
-            connection.enableHeartbeatTimer();
+        if(role == Role.CANDIDATE) {
+            if (vote)
+                votes++;
+            Debugger.log("Tenho " + votes + " votos");
+            if (votes >= connection.getMajorityNumber()) {
+                Debugger.log("Fui eleito como lider!");
+                leaderId = nodeId;
+                connection.disableElectionTimer();
+                votes = 0;
+                setLeader();
+                sendHeartbeat();
+                connection.disableElectionTimer();
+                connection.enableHeartbeatTimer();
+            }
         }
     }
 
@@ -166,6 +184,7 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
         connection.disableHeartbeatTimer();
         if(role != Role.LEADER) {
             Debugger.log("Vou iniciar uma eleicao, vou alterar o meu termo para: " + (currentTerm + 1));
+            leaderId = null;
             setCandidate();
             currentTerm++;
             votes++;
@@ -185,6 +204,5 @@ public class Node implements ServerInterface, ClientInterface, OnTimeListener {
         votedFor = null;
         votes = 0;
     }
-
 
 }

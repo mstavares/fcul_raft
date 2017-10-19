@@ -15,14 +15,9 @@ public class Log implements Serializable {
         entries.add(logEntry);
     }
 
-    public void set(int position, LogEntry logEntry) {
-        entries.set(position, logEntry);
+    public LogEntry getLastEntry() {
+        return entries.get(getLastLogIndex());
     }
-
-    public LogEntry getEntry(int position) {
-        return entries.get(position);
-    }
-
     /** Este método verifica se os meus logs estão outdated, se estiverem não posso ser lider */
     public boolean areMyLogsOutdated(int lastLogIndex, int lastLogTerm) {
         return lastLogIndex >= getLastLogIndex() && lastLogTerm >= getLastLogTerm();
@@ -34,61 +29,48 @@ public class Log implements Serializable {
 
     /** Este método envia o indice do último log adicionado */
     public int getLastLogIndex() {
-        if(entries.size() == 0)
+        if(isEmpty())
             return 0;
         else
             return entries.size() - 1;
     }
 
+    public int getPrevLogTerm() {
+        if(entries.size() == 1)
+            return 0;
+        else
+            return entries.get(getLastLogIndex() - 1).getTerm();
+    }
+
     /** Este método devolve o term do último log adicionado */
     public int getLastLogTerm() {
-        int lastLogIndex = getLastLogIndex();
-        if(lastLogIndex == 0)
-            return lastLogIndex;
+        if(isEmpty())
+            return 0;
         else
             return entries.get(getLastLogIndex()).getTerm();
     }
 
     /** Este métdo devolve o termo de uma dada posição */
     public int getTermOfIndex(int position) {
-        if(entries.size() == 0)
+        if(isEmpty())
             return 0;
         else
             return entries.get(position).getTerm();
     }
 
-    public ArrayList<LogEntry> getEntries() {
-        return entries;
-    }
-
-    public ArrayList<Integer> appendLogs(Log newEntries) {
-        Debugger.log("appendLogs: " + newEntries.toString());
-        ArrayList<Integer> updates = new ArrayList<Integer>();
-        for(int i = 0; i < newEntries.getEntries().size() - 1; i++) {
-            Debugger.log("ENTREI 1");
-            if(!entries.isEmpty() && entries.get(i).getTerm() != newEntries.getEntry(i).getTerm()) {
-                Debugger.log("ENTREI 2");
-                cleanLogsSince(i);
-                appendLogsSince(updates, newEntries.getEntries(), i);
-                break;
-            } else {
-                entries.add(newEntries.getEntry(i));
-                updates.add(i);
+    public void appendLog(LogEntry newEntry) {
+        Debugger.log("appendLog: " + newEntry.toString());
+        if(isEmpty()) {
+            entries.add(newEntry);
+        } else {
+            for (int i = entries.size() - 1; i >= 0; i--) {
+                if (entries.get(i).getTerm() != newEntry.getTerm()) {
+                    entries.remove(i);
+                } else {
+                    entries.add(newEntry);
+                    break;
+                }
             }
-        }
-        return updates;
-    }
-
-    private void cleanLogsSince(int position) {
-        for(int i = position; i < entries.size() - 1; i++) {
-            entries.remove(i);
-        }
-    }
-
-    private void appendLogsSince(ArrayList<Integer> updates, ArrayList<LogEntry> newEntries, int position) {
-        for(int i = position; i < newEntries.size() - 1; i++) {
-            entries.add(newEntries.get(i));
-            updates.add(i);
         }
     }
 

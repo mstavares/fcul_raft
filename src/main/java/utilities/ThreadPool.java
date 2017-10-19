@@ -26,15 +26,15 @@ public class ThreadPool {
         threadPool = Executors.newFixedThreadPool(numberOfThreads);
     }
 
-    public void sendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit, List<NodeConnectionInfo> nodesId) {
+    public void sendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit, List<NodeConnectionInfo> nodesId) {
         for (NodeConnectionInfo connectionId : nodesId) {
-            threadPool.execute(new EntriesWorker(connectionId, term, leaderId, prevLogIndex, prevLogTerm, leaderCommit, entries));
+            threadPool.execute(new EntriesWorker(connectionId, term, leaderId, prevLogIndex, prevLogTerm, leaderCommit, entry));
         }
     }
 
-    public void sendEntriesReply(NodeConnectionInfo leaderId, int logIndex, int term, boolean success) {
+    public void sendEntriesReply(NodeConnectionInfo leaderId, int term, boolean success) {
         ExecutorService threadPool = Executors.newFixedThreadPool(1);
-        threadPool.execute(new ReplierEntries(leaderId, logIndex, term, success));
+        threadPool.execute(new ReplierEntries(leaderId, term, success));
     }
 
     public void askForVotes(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm, List<NodeConnectionInfo> nodesId) {
@@ -56,19 +56,19 @@ public class ThreadPool {
 
         int term, logIndex, logTerm;
         NodeConnectionInfo connectionId, myId;
-        Log entries;
+        LogEntry entry;
 
         Worker(NodeConnectionInfo connectionId) {
             this.connectionId = connectionId;
         }
 
-        Worker(NodeConnectionInfo connectionId, int term, NodeConnectionInfo myId, int logIndex, int logTerm, Log entries) {
+        Worker(NodeConnectionInfo connectionId, int term, NodeConnectionInfo myId, int logIndex, int logTerm, LogEntry entry) {
             this.connectionId = connectionId;
             this.term = term;
             this.myId = myId;
             this.logIndex = logIndex;
             this.logTerm = logTerm;
-            this.entries = entries;
+            this.entry = entry;
         }
 
     }
@@ -80,8 +80,8 @@ public class ThreadPool {
 
         int leaderCommit;
 
-        EntriesWorker(NodeConnectionInfo connectionId, int term, NodeConnectionInfo myId, int logIndex, int logTerm, int leaderCommit, Log entries) {
-            super(connectionId, term, myId, logIndex, logTerm, entries);
+        EntriesWorker(NodeConnectionInfo connectionId, int term, NodeConnectionInfo myId, int logIndex, int logTerm, int leaderCommit, LogEntry entry) {
+            super(connectionId, term, myId, logIndex, logTerm, entry);
             this.leaderCommit = leaderCommit;
         }
 
@@ -89,10 +89,10 @@ public class ThreadPool {
             try {
                 Registry registry = LocateRegistry.getRegistry(connectionId.getIpAddress(), connectionId.getPort());
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
-                stub.appendEntries(term, myId, logIndex, logTerm, entries, leaderCommit);
+                stub.appendEntries(term, myId, logIndex, logTerm, entry, leaderCommit);
             } catch (RemoteException e) {
-                e.printStackTrace();
-                //Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                threadPool.shutdown();
             } catch (NotBoundException e) {
                 e.printStackTrace();
             } catch (ServerNotActiveException e) {
@@ -105,8 +105,8 @@ public class ThreadPool {
 
         boolean success;
 
-        ReplierEntries(NodeConnectionInfo connectionId, int logIndex, int term, boolean success) {
-            super(connectionId, term, null, logIndex, 0, null);
+        ReplierEntries(NodeConnectionInfo connectionId, int term, boolean success) {
+            super(connectionId, term, null, 0, 0, null);
             this.success = success;
         }
 
@@ -114,10 +114,9 @@ public class ThreadPool {
             try {
                 Registry registry = LocateRegistry.getRegistry(connectionId.getIpAddress(), connectionId.getPort());
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
-                stub.appendEntriesReply(logIndex, term, success);
+                stub.appendEntriesReply(term, success);
             } catch (RemoteException e) {
-                e.printStackTrace();
-                //Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             }
@@ -139,8 +138,7 @@ public class ThreadPool {
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
                 stub.requestVote(term, myId, logIndex, logTerm);
             } catch (RemoteException e) {
-                e.printStackTrace();
-                //Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             }
@@ -165,8 +163,7 @@ public class ThreadPool {
                 ServerInterface stub = (ServerInterface) registry.lookup(serviceName);
                 stub.onVoteReceive(vote);
             } catch (RemoteException e) {
-                e.printStackTrace();
-                //Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
             } catch (NotBoundException e) {
                 e.printStackTrace();
             }

@@ -9,7 +9,7 @@ public class NodeConnectionInfo implements Serializable {
     private String ipAddress;
     private int port;
 
-    NodeConnectionInfo(String ipAddress, int port) {
+    public NodeConnectionInfo(String ipAddress, int port) {
         this.ipAddress = ipAddress;
         this.port = port;
     }

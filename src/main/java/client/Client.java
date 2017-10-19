@@ -19,16 +19,14 @@ import java.util.Scanner;
 
 public class Client {
 
-    private static final String SERVICE_NAME = "raft";
+
 
     public static void main(String[] args) {
         try {
 
 
-            HashMap<String, String> map = XmlSerializer.readConfig("Nodes.xml");
-
-            Registry registry = LocateRegistry.getRegistry("192.168.0.65", 1099);
-            ClientInterface stub = (ClientInterface) registry.lookup(SERVICE_NAME);
+            Registry registry = LocateRegistry.getRegistry("192.168.1.130", 1099);
+            ClientInterface stub = (ClientInterface) registry.lookup("raft");
 
             Scanner scan = new Scanner(System.in);
             String inputKey;
@@ -38,8 +36,8 @@ public class Client {
                 /** Este bocado de codigo envia os pedidos para o servidor */
                 System.out.print("\nCommand$ ");
                 inputKey = scan.next();
-                String teste = stub.request(inputKey);
-                System.out.println("Cliente " + teste);
+                String response = stub.request(inputKey);
+                System.out.println(response);
             }
 
 

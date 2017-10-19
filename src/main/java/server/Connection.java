@@ -24,6 +24,7 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
     private static final String NODES = "Nodes.xml";
     private List<NodeConnectionInfo> nodesIds = new ArrayList<NodeConnectionInfo>();
     private TimeManager electionTimer, heartbeatTimer;
+    private ConnectionInterface connectionInterface;
     private ServerInterface serverInterface;
     private ClientInterface clientInterface;
     private OnTimeListener timeListener;
@@ -33,6 +34,7 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         super();
         readNodesFile();
         registerService(port);
+        this.connectionInterface = node;
         this.serverInterface = node;
         this.clientInterface = node;
         this.timeListener = node;
@@ -83,28 +85,29 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
     }
 
     /** Este método envia os logs para os outros servidores */
-    public void sendEntry(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) {
-        if(entries != null)
-            Debugger.log("ola");
-        threadPool.sendEntries(term, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit, nodesIds);
+    public void sendEntry(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit) {
+        if(entry == null)
+            Debugger.log("Vou enviar um heartbeat");
+        threadPool.sendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit, nodesIds);
     }
 
     /** Este método recebe os logs dos outros servidores.
      *  Se o pedido vier com o entries a null quer dizer que é um heartbeat
      */
-    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, Log entries, int leaderCommit) throws RemoteException, ServerNotActiveException {
+    public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit) throws RemoteException, ServerNotActiveException {
         Debugger.log("Recebi um appendEntries de: " + getClientHost());
+        connectionInterface.updateLeaderId(leaderId);
         electionTimer.resetTimer();
-        if(entries != null)
-            serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entries, leaderCommit);
+        if(entry != null)
+            serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit);
     }
 
-    public void appendEntriesReply(int index, int term, boolean success) throws RemoteException {
-        serverInterface.appendEntriesReply(index, term, success);
+    public void appendEntriesReply(int term, boolean success) throws RemoteException {
+        serverInterface.appendEntriesReply(term, success);
     }
 
-    public void sendAppendEntriesReply(NodeConnectionInfo leaderId, int index, int term, boolean success) {
-        threadPool.sendEntriesReply(leaderId, index, term, success);
+    public void sendAppendEntriesReply(NodeConnectionInfo leaderId, int term, boolean success) {
+        threadPool.sendEntriesReply(leaderId, term, success);
     }
 
     /** Este método envia um pedido de voto aos outros servidores */
