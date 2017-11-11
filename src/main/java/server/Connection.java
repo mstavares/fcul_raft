@@ -1,6 +1,16 @@
 package server;
 
 import client.ClientInterface;
+<<<<<<< HEAD
+=======
+import common.NotLeaderException;
+import common.OnTimeListener;
+import common.TimeManager;
+import server.interfaces.ConnectionInterface;
+import server.interfaces.ServerInterface;
+import server.models.LogEntry;
+import server.models.NodeConnectionInfo;
+>>>>>>> replication
 import utilities.*;
 
 import java.rmi.AlreadyBoundException;
@@ -10,9 +20,13 @@ import java.rmi.registry.Registry;
 import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+<<<<<<< HEAD
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+=======
+import java.util.List;
+>>>>>>> replication
 
 /**
  * Esta classe é a camada de ligação dos servidores.
@@ -30,9 +44,9 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
     private OnTimeListener timeListener;
     private ThreadPool threadPool;
 
-    Connection(Node node, int port) throws RemoteException {
+
+    Connection(List<NodeConnectionInfo> nodesIds, Node node, int port) throws RemoteException {
         super();
-        readNodesFile();
         registerService(port);
         this.connectionInterface = node;
         this.serverInterface = node;
@@ -42,20 +56,13 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         threadPool = new ThreadPool(SERVICE_NAME, nodesIds.size());
     }
 
-    /** Este método lê os servidores existentes do ficheiro de configuração */
-    private void readNodesFile() {
-        HashMap<String, String> map = XmlSerializer.readConfig(NODES);
-        for (Map.Entry<String, String> e : map.entrySet()) {
-            nodesIds.add(new NodeConnectionInfo(e.getKey(), Integer.parseInt(e.getValue())));
-        }
-    }
-
     /** Este método regista o servidor para receber pedidos via RMI */
     private void registerService(int port) {
         try {
             Registry registry = LocateRegistry.createRegistry(port);
             registry.bind(SERVICE_NAME, this);
-            System.out.println("Server is ready for action!");
+
+            System.out.println("ServerMain is ready for action!");
         } catch (RemoteException e) {
             e.printStackTrace();
         } catch (AlreadyBoundException e) {
@@ -71,24 +78,20 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         }
     }
 
-    /** Este método devolve o número de servidores correspondentes à maioria */
-    public int getMajorityNumber() {
-        if(nodesIds.size() == 1)
-            return nodesIds.size() + 1;
-        else
-            return nodesIds.size() / 2 + 1;
-    }
 
     /** Este método recebe os pedidos RMI do cliente */
-    public String request(String command) throws RemoteException, ServerNotActiveException {
+    public String request(String command) throws RemoteException, ServerNotActiveException, NotLeaderException {
         return clientInterface.request(command);
     }
 
     /** Este método envia os logs para os outros servidores */
-    public void sendEntry(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit) {
+    public void sendAppendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit, NodeConnectionInfo connectionId) {
         if(entry == null)
             Debugger.log("Vou enviar um heartbeat");
-        threadPool.sendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit, nodesIds);
+        else
+            Debugger.log(entry.toString());
+        threadPool.sendAppendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit, connectionId);
+
     }
 
     /** Este método recebe os logs dos outros servidores.
@@ -102,16 +105,17 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
             serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit);
     }
 
-    public void appendEntriesReply(int term, boolean success) throws RemoteException {
-        serverInterface.appendEntriesReply(term, success);
+
+    public void appendEntriesReply(NodeConnectionInfo replier, boolean success, int logIndex, int prevLogTerm) throws RemoteException {
+        serverInterface.appendEntriesReply(replier, success, logIndex, prevLogTerm);
     }
 
-    public void sendAppendEntriesReply(NodeConnectionInfo leaderId, int term, boolean success) {
-        threadPool.sendEntriesReply(leaderId, term, success);
+    public void sendAppendEntriesReply(NodeConnectionInfo leaderId, NodeConnectionInfo nodeId, boolean success, int prevLogIndex, int prevLogTerm) {
+        threadPool.sendEntriesReply(leaderId, nodeId, success, prevLogIndex, prevLogTerm);
     }
 
     /** Este método envia um pedido de voto aos outros servidores */
-    public void askForVotes(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm) {
+    public void askForVotes(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm, List<NodeConnectionInfo> nodesIds) {
         electionsTimeout();
         threadPool.askForVotes(term, candidateId, lastLogIndex, lastLogTerm, nodesIds);
     }
@@ -137,8 +141,10 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
     }
 
     public void disableHeartbeatTimer() {
-        if(heartbeatTimer != null)
+        if(heartbeatTimer != null) {
             heartbeatTimer.stopTimer();
+            heartbeatTimer = null;
+        }
     }
 
     public void disableElectionTimer() {
