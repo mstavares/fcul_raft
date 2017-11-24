@@ -189,34 +189,6 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
                 requestProcessed();
                 processNextRequest();
             }
-
-
-            /*
-            Debugger.log("Vou incrementar os votos desta entry");
-            for(int i = 0; i < logs.getLastLogIndex(); i++) {
-                boolean commitIndexUpdated = false;
-
-
-                int numberOfNodesConfirmed = 1;
-
-                for(NodeConnectionInfo nodeId : nodesIds) {
-                    if(nodeId.getMatchIndex() >= commitIndex) {
-                        if (nodeId.getMatchIndex() >= i) {
-                            numberOfNodesConfirmed++;
-                            if (numberOfNodesConfirmed > getMajority()) {
-                                commitIndexUpdated = true;
-                                Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
-                                commitIndex++;
-                                requestProcessed();
-                                processNextRequest();
-                            }
-                        }
-                    }
-                    if(!commitIndexUpdated)
-                        break;
-                }
-            }
-            */
         } else {
             Debugger.log("Append entries rejeitado.");
         }

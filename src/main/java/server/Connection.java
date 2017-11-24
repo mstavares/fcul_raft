@@ -1,8 +1,6 @@
 package server;
 
 import client.ClientInterface;
-<<<<<<< HEAD
-=======
 import common.NotLeaderException;
 import common.OnTimeListener;
 import common.TimeManager;
@@ -10,7 +8,6 @@ import server.interfaces.ConnectionInterface;
 import server.interfaces.ServerInterface;
 import server.models.LogEntry;
 import server.models.NodeConnectionInfo;
->>>>>>> replication
 import utilities.*;
 
 import java.rmi.AlreadyBoundException;
@@ -19,14 +16,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
-<<<<<<< HEAD
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-=======
-import java.util.List;
->>>>>>> replication
 
 /**
  * Esta classe é a camada de ligação dos servidores.
@@ -35,15 +25,12 @@ import java.util.List;
 public class Connection extends UnicastRemoteObject implements ClientInterface, ServerInterface, OnTimeListener {
 
     private static final String SERVICE_NAME = "raft";
-    private static final String NODES = "Nodes.xml";
-    private List<NodeConnectionInfo> nodesIds = new ArrayList<NodeConnectionInfo>();
     private TimeManager electionTimer, heartbeatTimer;
     private ConnectionInterface connectionInterface;
     private ServerInterface serverInterface;
     private ClientInterface clientInterface;
     private OnTimeListener timeListener;
     private ThreadPool threadPool;
-
 
     Connection(List<NodeConnectionInfo> nodesIds, Node node, int port) throws RemoteException {
         super();
@@ -61,7 +48,6 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         try {
             Registry registry = LocateRegistry.createRegistry(port);
             registry.bind(SERVICE_NAME, this);
-
             System.out.println("ServerMain is ready for action!");
         } catch (RemoteException e) {
             e.printStackTrace();
@@ -78,7 +64,6 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         }
     }
 
-
     /** Este método recebe os pedidos RMI do cliente */
     public String request(String command) throws RemoteException, ServerNotActiveException, NotLeaderException {
         return clientInterface.request(command);
@@ -91,7 +76,6 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         else
             Debugger.log(entry.toString());
         threadPool.sendAppendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit, connectionId);
-
     }
 
     /** Este método recebe os logs dos outros servidores.
@@ -104,7 +88,6 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         if(entry != null)
             serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit);
     }
-
 
     public void appendEntriesReply(NodeConnectionInfo replier, boolean success, int logIndex, int prevLogTerm) throws RemoteException {
         serverInterface.appendEntriesReply(replier, success, logIndex, prevLogTerm);
