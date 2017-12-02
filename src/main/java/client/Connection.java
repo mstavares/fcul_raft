@@ -14,35 +14,35 @@ import java.util.Random;
 import utilities.Debugger;
 import common.NotLeaderException;
 import common.OnTimeListener;
+import common.OperationType;
 import common.TimeManager;
+import server.interfaces.ClientInterface;
 
 public class Connection implements OnTimeListener {
 
 	private ClientInterface stub;
 	private Registry registry;
 	private TimeManager requestTimer;
-	private enum Request {GET, POST, PUT, DELETE, PATCH}
-	private static final List<Request> values =
-		    Collections.unmodifiableList(Arrays.asList(Request.values()));
+	//private static final List<Request> values = Collections.unmodifiableList(Arrays.asList(Request.values()));
 	private static final Random rnd = new Random();
 	
 	public Connection(String host, int port) throws RemoteException, NotBoundException {
 		registry = LocateRegistry.getRegistry(host, port);
         stub = (ClientInterface) registry.lookup("raft");
-        requestTimer = new TimeManager(this);
+        // requestTimer = new TimeManager(this);
 	}
 	
 	public void timeout(TimeManager timeManager) {
 		Debugger.log("Timeout para enviar um pedido");
-		Request request = getRequest();
-		sendRequest(request);
+		// Request request = getRequest();
+		// sendRequest(request);
 		timeManager.resetTimer();
 	}
 
-	private void sendRequest(Request request) {
-		Debugger.log("Vou enviar o pedido: " + request);
+	private void sendRequest(OperationType op, String key, String value) {
+		Debugger.log("Vou enviar o pedido: " + op);
 		try {
-			String response = stub.request(request.name());
+			String response = stub.request(op, key, value);
 			Debugger.log("Recebi a resposta: " + response);
 		} catch (RemoteException e) {
 			Debugger.log("RemoteException");
@@ -55,7 +55,7 @@ public class Connection implements OnTimeListener {
 			Debugger.log("Vou reenviar o pedido para: " + e.getMessage());
 			String[] arr = e.getMessage().split(":");
 			redirectToLeader(arr[0], Integer.parseInt(arr[1]));
-			sendRequest(request);
+			sendRequest(op, key, value);
 		}
 
 	}
@@ -72,8 +72,10 @@ public class Connection implements OnTimeListener {
 		}
 	}
 
+	/*
 	private Request getRequest() {
 		return values.get(rnd.nextInt(values.size()));
 	}
+	*/
 
 }

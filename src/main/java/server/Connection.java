@@ -1,9 +1,10 @@
 package server;
 
-import client.ClientInterface;
 import common.NotLeaderException;
 import common.OnTimeListener;
+import common.OperationType;
 import common.TimeManager;
+import server.interfaces.ClientInterface;
 import server.interfaces.ConnectionInterface;
 import server.interfaces.ServerInterface;
 import server.models.LogEntry;
@@ -11,6 +12,7 @@ import server.models.NodeConnectionInfo;
 import utilities.*;
 
 import java.rmi.AlreadyBoundException;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -65,8 +67,8 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
     }
 
     /** Este método recebe os pedidos RMI do cliente */
-    public String request(String command) throws RemoteException, ServerNotActiveException, NotLeaderException {
-        return clientInterface.request(command);
+    public String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException {
+        return clientInterface.request(op, key, oldValue, newValue);
     }
 
     /** Este método envia os logs para os outros servidores */
@@ -89,7 +91,7 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
             serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit);
     }
 
-    public void appendEntriesReply(NodeConnectionInfo replier, boolean success, int logIndex, int prevLogTerm) throws RemoteException {
+    public void appendEntriesReply(NodeConnectionInfo replier, boolean success, int logIndex, int prevLogTerm) throws RemoteException, NotBoundException {
         serverInterface.appendEntriesReply(replier, success, logIndex, prevLogTerm);
     }
 

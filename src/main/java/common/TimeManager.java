@@ -25,8 +25,8 @@ public class TimeManager {
     public TimeManager(OnTimeListener timeListener, boolean heartbeat) {
         this.timeListener = timeListener;
         this.heartbeat = heartbeat;
-        minTimeout = 1 * 1000;
-        maxTimeout = 2 * 1000;
+        minTimeout = 2 * 1000;
+        maxTimeout = 3 * 1000;
         resetTimer();
     }
 

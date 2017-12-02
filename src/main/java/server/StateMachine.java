@@ -6,8 +6,6 @@ import java.util.Map;
 
 public class StateMachine {
 
-    public enum OperationType {PUT, GET, DEL, CAS}
-
     private HashMap<String, String> storedData = new HashMap<String, String>();
 
     public void put(String key, String value) {

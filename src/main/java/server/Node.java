@@ -1,9 +1,10 @@
 package server;
 
-import client.ClientInterface;
 import common.NotLeaderException;
 import common.OnTimeListener;
+import common.OperationType;
 import common.TimeManager;
+import server.interfaces.ClientInterface;
 import server.interfaces.ConnectionInterface;
 import server.interfaces.ServerInterface;
 import server.models.LogEntry;
@@ -11,13 +12,18 @@ import server.models.NodeConnectionInfo;
 import server.models.RequestPacket;
 import utilities.*;
 
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import client.ReplyInterface;
 
 /**
  * Esta class é responsável por enviar, receber e interpretar todos os tipos de pedidos,
@@ -40,11 +46,14 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     private NodeConnectionInfo votedFor;
     private Log logs = new Log();
     private int currentTerm;
+    
+    /** State Machine **/
+    private StateMachine stateMachine;
 
     /** Volatile state on all servers */
     private int commitIndex = -1;
     private int lastApplied;
-
+    
 
     Node() throws RemoteException {
         setFollower();
@@ -53,6 +62,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         Debugger.log("A minha config ip: " + map.get("ipAddress") + " porta: " + map.get("port"));
         nodeId = new NodeConnectionInfo(map.get("ipAddress"), Integer.parseInt(map.get("port")));
         connection = new Connection(nodesIds,this, nodeId.getPort());
+        stateMachine = new StateMachine();
     }
 
     /** Este método lê os servidores existentes do ficheiro de configuração */
@@ -109,11 +119,11 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     }
 
     /** Este método recebe os pedidos dos clientes provenientes da camada de ligação. */
-    public String request(String command) throws ServerNotActiveException, NotLeaderException {
+    public String request(OperationType op, String key, String oldValue, String newValue) throws ServerNotActiveException, NotLeaderException {
         if(role == Role.LEADER) {
-            RequestPacket rp = new RequestPacket(command, RemoteServer.getClientHost());
+            RequestPacket rp = new RequestPacket(RemoteServer.getClientHost(), 1095, op);
             Debugger.log("Recebi o request: " + rp.toString());
-            logs.add(new LogEntry(command, currentTerm));
+            logs.add(new LogEntry(op, currentTerm, key, oldValue, newValue));
             Debugger.log("Logs: " + logs.toString());
             requests.add(rp);
             processNextRequest();
@@ -141,11 +151,38 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     }
 
     /** Regra 1 de All Servers */
-    private void applyToStateMachine() {
+    private String applyToStateMachine() {
         if(commitIndex > lastApplied) {
             lastApplied++;
             // TODO apply logs.get(lastApplied) to state machine
+            LogEntry last = logs.getLogEntryOfIndex(lastApplied);
+            String res;
+            switch(last.getOp()) {
+			case CAS:
+				res = stateMachine.cas(last.getKey(), last.getOldValue(), last.getNewValue());
+				break;
+			case DEL:
+				stateMachine.del(last.getKey());
+				res = "Valor Removido";
+				break;
+			case GET:
+				res = stateMachine.get(last.getKey());
+				break;
+			case LIST:
+				res = stateMachine.list();
+				break;
+			case PUT:
+				stateMachine.put(last.getKey(), last.getNewValue());
+				res = "Valor inserido";
+				break;
+			default:
+				res = null;
+				break;
+            
+            }
+            return res;
         }
+        return null;
     }
 
     /** Este método recebe os pedidos de appendEntries da camada de ligação */
@@ -177,7 +214,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         return null;
     }
 
-    public void appendEntriesReply(NodeConnectionInfo replier, boolean success, int logIndex, int prevLogTerm) {
+    public void appendEntriesReply(NodeConnectionInfo replier, boolean success, int logIndex, int prevLogTerm) throws RemoteException, NotBoundException {
         Debugger.log("Fez append? " + success);
         NodeConnectionInfo node = findNode(replier);
         updateNodeIndexes(node, success);
@@ -186,12 +223,19 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             if(logs.getNumberOfReplicatedNodes(logIndex) + 1 > getMajority() && logIndex >= commitIndex) {
                 Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
                 commitIndex++;
+                replyToClient(applyToStateMachine());
                 requestProcessed();
                 processNextRequest();
             }
         } else {
             Debugger.log("Append entries rejeitado.");
         }
+    }
+    
+    private void replyToClient(String result) throws RemoteException, NotBoundException {
+    	Registry r = LocateRegistry.getRegistry(processingRequest.getIp(), processingRequest.getPort());
+    	ReplyInterface stub = (ReplyInterface) r.lookup("raft");
+    	stub.reply(result);
     }
 
     private void updateNodeIndexes(NodeConnectionInfo node, boolean success) {

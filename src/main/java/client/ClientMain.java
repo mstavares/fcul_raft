@@ -17,7 +17,7 @@ public class ClientMain {
     public static void main(String[] args) {
 		Debugger.log("Client is starting");
        try {
-			new Connection("192.168.1.16", 1099);
+			new Connection("192.168.1.14", 1090);
 		} catch (RemoteException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

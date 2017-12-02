@@ -2,50 +2,64 @@ package server.models;
 
 import java.sql.Timestamp;
 
+import common.OperationType;
+
 /** Esta classe é um modelo para os pedidos enviados pelos clientes */
 public class RequestPacket {
 
     private static int requestIdGenerator = 0;
     private Timestamp timestamp;
-    private String command, key, value;
+    private String key, oldValue, newValue;
     private String ip;
+    private int port;
+    private OperationType op;
     private int id;
 
-    public RequestPacket(String ip, String command) {
+    public RequestPacket(String ip, int port, OperationType op) {
         timestamp = new Timestamp(System.currentTimeMillis());
         id = requestIdGenerator++;
-        this.command = command;
+        this.op = op;
         this.ip = ip;
+        this.port = port;
     }
 
-    public RequestPacket(String ip, String command, String key) {
-        this(ip, command);
+    public RequestPacket(String ip, int port, OperationType op, String key) {
+        this(ip, port, op);
         this.key = key;
     }
 
-    public RequestPacket(String ip, String command, String key, String value) {
-        this(ip, command, key);
-        this.value = value;
+    public RequestPacket(String ip, int port, OperationType op, String key, String oldValue, String newValue) {
+        this(ip, port, op, key);
+        this.oldValue = oldValue;
+    	this.newValue = newValue;
     }
 
     public Timestamp getTimestamp() {
         return timestamp;
     }
 
-    public String getCommand() {
-        return command;
+    public OperationType getOperation() {
+        return op;
     }
 
     public String getKey() {
         return key;
     }
 
-    public String getValue() {
-        return value;
+    public String getNewValue() {
+    	return newValue;
+    }
+    
+    public String getOldValue() {
+    	return oldValue;
     }
 
     public String getIp() {
         return ip;
+    }
+    
+    public int getPort() {
+    	return port;
     }
 
     public int getId() {
@@ -54,6 +68,6 @@ public class RequestPacket {
 
     @Override
     public String toString() {
-        return "comando: " + command + " de: " + ip + " com o id: " + id;
+        return "comando: " + op + " de: " + ip + " com o id: " + id;
     }
 }
