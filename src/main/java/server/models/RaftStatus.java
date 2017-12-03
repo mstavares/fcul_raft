@@ -7,7 +7,9 @@ import java.util.ArrayList;
 
 public class RaftStatus implements Serializable {
 
-    private ArrayList<RequestPacket> requests;
+	private static final long serialVersionUID = -8014037637389049745L;
+	
+	private ArrayList<RequestPacket> requests;
     private NodeConnectionInfo votedFor;
     private int currentTerm;
     private Log logs;
@@ -19,7 +21,15 @@ public class RaftStatus implements Serializable {
         this.logs = logs;
     }
 
-    public ArrayList<RequestPacket> getRequests() {
+    public RaftStatus() {
+    	// TODO please double check if this constructor makes sense
+    	requests = new ArrayList<RequestPacket>();
+    	votedFor = null; //TODO not sure como inicializar isto?
+    	currentTerm= 0;
+    	logs = new Log();
+	}
+
+	public ArrayList<RequestPacket> getRequests() {
         return requests != null ? requests : new ArrayList<RequestPacket>();
     }
 

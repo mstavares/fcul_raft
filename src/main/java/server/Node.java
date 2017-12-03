@@ -13,6 +13,7 @@ import server.models.RequestPacket;
 import server.models.RaftStatus;
 import utilities.*;
 
+import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteServer;
@@ -57,7 +58,13 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     Node() throws RemoteException {
         setFollower();
         readNodesFile();
-        recoverStatus();
+        try {
+			recoverStatus();
+		} catch (IOException e) {
+			System.out.println("Error recovering status");
+			e.printStackTrace();
+			System.exit(-1);
+		}
         HashMap<String, String> map = XmlSerializer.readConfig(NODE_CONFIG);
         Debugger.log("A minha config ip: " + map.get("ipAddress") + " porta: " + map.get("port"));
         nodeId = new NodeConnectionInfo(map.get("ipAddress"), Integer.parseInt(map.get("port")));
@@ -75,11 +82,16 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
     private void storeCurrentStatus() {
         RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
-        /** Serializar o objecto aqui */
+        try {
+			new FileManager().writeDatabaseToFile(raftStatus);
+		} catch (IOException e) {
+			System.out.println("Error storing current status");
+			e.printStackTrace();
+		}
     }
 
-    private void recoverStatus() {
-        RaftStatus raftStatus = null; /** temos de ler o ficheiro para o objeto. */
+    private void recoverStatus() throws IOException {
+        RaftStatus raftStatus = new FileManager().restoreDatabase();
         currentTerm = raftStatus.getCurrentTerm();
         requests = raftStatus.getRequests();
         votedFor = raftStatus.getVotedFor();
