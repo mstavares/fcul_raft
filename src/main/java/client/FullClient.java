@@ -12,7 +12,7 @@ import java.rmi.RemoteException;
  * Se o servidor for o lider, a respota deverá ser um código (ver secção 8 do paper)
  */
 
-public class ClientMain {
+public class FullClient {
 
     public static void main(String[] args) {
 		Debugger.log("Client is starting");
