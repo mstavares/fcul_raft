@@ -42,11 +42,11 @@ public class FullClient {
 		OperationType operation = OperationType.PUT;
 		boolean sendRequest;
 		
-		while (!finished){
+		while (!finished){ //TODO is there a need for multiple threads?
 			newValue = null;
 			oldValue = null;
 			key = null;
-			sendRequest = false;
+			sendRequest = true;
 			
 			showMenu();
 			op = sc.nextInt();
@@ -55,19 +55,19 @@ public class FullClient {
 			case 1:
 				operation = OperationType.PUT;
 				System.out.println("Insert the key to put:");
-				key = sc.nextLine();
+				key = sc.next();
 				System.out.println("Insert the value:");
-				newValue = sc.nextLine();
+				newValue = sc.next();
 				break;
 			case 2:
 				operation = OperationType.GET;
 				System.out.println("Insert the key to get:");
-				key = sc.nextLine();
+				key = sc.next();
 				break;
 			case 3:
 				operation = OperationType.DEL;
 				System.out.println("Insert the key to delete:");
-				key = sc.nextLine();
+				key = sc.next();
 				break;
 			case 4:
 				operation = OperationType.LIST;
@@ -75,16 +75,18 @@ public class FullClient {
 			case 5:
 				operation = OperationType.CAS;
 				System.out.println("Insert the key:");
-				key = sc.nextLine();
+				key = sc.next();
 				System.out.println("Insert the old value:");
-				oldValue = sc.nextLine();
+				oldValue = sc.next();
 				System.out.println("Insert the new value:");
-				newValue = sc.nextLine();
+				newValue = sc.next();
 				break;
 			case 0:
 				finished = true;
+				sendRequest = false;
 				break;
 			default:
+				sendRequest = false;
 				System.out.println("Invalid option.");
 			}
 			
@@ -103,7 +105,7 @@ public class FullClient {
     
     
     private static void showMenu(){
-		System.out.println("Choose an action:");
+		System.out.println("\nChoose an action:");
 		System.out.println("1- PUT");
 		System.out.println("2- GET");
 		System.out.println("3- DEL");
