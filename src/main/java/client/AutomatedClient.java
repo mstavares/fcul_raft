@@ -4,6 +4,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.ServerNotActiveException;
 
+import client.FullClient.Server;
 import common.OperationType;
 
 /**
@@ -20,7 +21,8 @@ public class AutomatedClient{
 		
 		try {
 			boolean sendRequests = false;
-			Connection con = new Connection("192.168.1.14", 1090); //TODO get this from file
+			Server server = FullClient.getRandomServer();
+			Connection con = new Connection(server.getIp(), server.getPort() );
 			int count = 0;
 			
 			while(sendRequests){
