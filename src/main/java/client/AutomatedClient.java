@@ -3,6 +3,7 @@ package client;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.ServerNotActiveException;
+import java.util.Scanner;
 
 import client.FullClient.Server;
 import common.OperationType;
@@ -19,6 +20,10 @@ public class AutomatedClient{
 		System.out.println("* Simple Automated Client *");
 		System.out.println("***************************");
 		
+		Scanner sc = new Scanner(System.in);
+		System.out.println("Insert the interval between request in seconds:");
+		int requestInterval = sc.nextInt() * 1000;
+		
 		try {
 			boolean sendRequests = false;
 			Server server = FullClient.getRandomServer();
@@ -31,7 +36,7 @@ public class AutomatedClient{
 				count++;
 				
 				try {
-					Thread.sleep(2000);
+					Thread.sleep(requestInterval);
 				} catch (InterruptedException e) {
 					System.out.println("Sleep interrupted");
 					e.printStackTrace();
@@ -41,6 +46,8 @@ public class AutomatedClient{
 			System.out.println("Error Connecting to the server.");
 			e.printStackTrace();
 		}
+		
+		sc.close();
 	}
 	
 	
