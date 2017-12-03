@@ -52,7 +52,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
     /** Volatile state on all servers */
     private int commitIndex = -1;
-    private int lastApplied;
+    private int lastApplied = -1;
     
     private boolean majority = false;
     
@@ -132,12 +132,16 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             boolean brk = false;
             String result = null;
             while(!brk) {
-            	if(majority && processingRequest == rp) {
+            	// && processingRequest == rp
+            	Debugger.log("Iterating");
+            	if(majority) {
+            		Debugger.log("Got all majority, applying to statemachine");
             		majority = false;
             		brk = true;
                     Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
                     commitIndex++;
                     result = applyToStateMachine();
+                    Debugger.log("Repplying with :" + result);
                     requestProcessed();
                     processNextRequest();
             	}
@@ -147,6 +151,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
         } else {
             if(leaderId != null) {
+            	Debugger.log("Redirected client to leader");
                 throw new NotLeaderException(leaderId.getIpAddress()+ ":" +leaderId.getPort());
             } else {
                 return "O raft esta neste momento a eleger o lider.";
@@ -169,6 +174,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
     /** Regra 1 de All Servers */
     private String applyToStateMachine() {
+    	Debugger.log("Entering StateMachine");
         if(commitIndex > lastApplied) {
             lastApplied++;
             // TODO apply logs.get(lastApplied) to state machine
@@ -177,23 +183,29 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             switch(last.getOp()) {
 			case CAS:
 				res = stateMachine.cas(last.getKey(), last.getOldValue(), last.getNewValue());
+				Debugger.log("Adicionei a operação CAS à state Machine");
 				break;
 			case DEL:
 				stateMachine.del(last.getKey());
 				res = "Valor Removido";
+				Debugger.log("Adicionei a operação DEL à state Machine");
 				break;
 			case GET:
 				res = stateMachine.get(last.getKey());
+				Debugger.log("Adicionei a operação GET à state Machine");
 				break;
 			case LIST:
 				res = stateMachine.list();
+				Debugger.log("Adicionei a operação LIST à state Machine");
 				break;
 			case PUT:
 				stateMachine.put(last.getKey(), last.getNewValue());
 				res = "Valor inserido";
+				Debugger.log("Adicionei a operação PUT à state Machine");
 				break;
 			default:
 				res = null;
+				Debugger.log("Operação Inválida");
 				break;
             
             }
@@ -238,14 +250,14 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         if(success) {
             logs.addReplicatedNode(node, logIndex);
             if(logs.getNumberOfReplicatedNodes(logIndex) + 1 > getMajority() && logIndex >= commitIndex) {
-            	majority = true;
             	/*
-            	 Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
+            	Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
                 commitIndex++;
                 repyToClient(replyToStateMachine());
                 requestProcessed();
                 processNextRequest();
             	 */
+            	Debugger.log("Got Majority");
             	majority = true;
             }
         } else {

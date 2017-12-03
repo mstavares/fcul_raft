@@ -22,10 +22,11 @@ public class StateMachine {
 
     public String list() {
         StringBuilder stringBuilder = new StringBuilder();
-        Iterator it = storedData.entrySet().iterator();
+        HashMap<String, String> temp = (HashMap<String, String>) storedData.clone();
+        Iterator it = temp.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry pair = (Map.Entry)it.next();
-            stringBuilder.append(pair.getKey()).append(" -> ").append(pair.getValue());
+            stringBuilder.append(pair.getKey()).append(" -> ").append(pair.getValue()).append("\n");
             it.remove(); // avoids a ConcurrentModificationException
         }
         return stringBuilder.toString();
