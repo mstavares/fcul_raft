@@ -13,6 +13,11 @@ import common.OperationType;
 public class AutomatedClient{
 	
 	public static void main(String[] args) {
+		
+		System.out.println("***************************");
+		System.out.println("* Simple Automated Client *");
+		System.out.println("***************************");
+		
 		try {
 			boolean sendRequests = false;
 			Connection con = new Connection("192.168.1.14", 1090); //TODO get this from file
