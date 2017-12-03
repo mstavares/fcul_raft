@@ -54,6 +54,8 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     private int commitIndex = -1;
     private int lastApplied;
     
+    private boolean majority = false;
+    
 
     Node() throws RemoteException {
         setFollower();
@@ -127,7 +129,22 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             Debugger.log("Logs: " + logs.toString());
             requests.add(rp);
             processNextRequest();
-            return "O pedido " + rp.toString() + " foi adicionado à fila de execucao.";
+            boolean brk = false;
+            String result = null;
+            while(!brk) {
+            	if(majority && processingRequest == rp) {
+            		majority = false;
+            		brk = true;
+                    Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
+                    commitIndex++;
+                    result = applyToStateMachine();
+                    requestProcessed();
+                    processNextRequest();
+            	}
+                
+            }
+            return result;
+
         } else {
             if(leaderId != null) {
                 throw new NotLeaderException(leaderId.getIpAddress()+ ":" +leaderId.getPort());
@@ -221,22 +238,28 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         if(success) {
             logs.addReplicatedNode(node, logIndex);
             if(logs.getNumberOfReplicatedNodes(logIndex) + 1 > getMajority() && logIndex >= commitIndex) {
-                Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
+            	majority = true;
+            	/*
+            	 Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
                 commitIndex++;
-                replyToClient(applyToStateMachine());
+                repyToClient(replyToStateMachine());
                 requestProcessed();
                 processNextRequest();
+            	 */
+            	majority = true;
             }
         } else {
             Debugger.log("Append entries rejeitado.");
         }
     }
     
+    /*
     private void replyToClient(String result) throws RemoteException, NotBoundException {
     	Registry r = LocateRegistry.getRegistry(processingRequest.getIp(), processingRequest.getPort());
     	ReplyInterface stub = (ReplyInterface) r.lookup("raft");
     	stub.reply(result);
     }
+    */
 
     private void updateNodeIndexes(NodeConnectionInfo node, boolean success) {
         if(success) {
