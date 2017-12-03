@@ -10,20 +10,17 @@ import server.interfaces.ServerInterface;
 import server.models.LogEntry;
 import server.models.NodeConnectionInfo;
 import server.models.RequestPacket;
+import server.models.RaftStatus;
 import utilities.*;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import client.ReplyInterface;
 
 /**
  * Esta class é responsável por enviar, receber e interpretar todos os tipos de pedidos,
@@ -60,6 +57,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     Node() throws RemoteException {
         setFollower();
         readNodesFile();
+        recoverStatus();
         HashMap<String, String> map = XmlSerializer.readConfig(NODE_CONFIG);
         Debugger.log("A minha config ip: " + map.get("ipAddress") + " porta: " + map.get("port"));
         nodeId = new NodeConnectionInfo(map.get("ipAddress"), Integer.parseInt(map.get("port")));
@@ -75,10 +73,23 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         }
     }
 
+    private void storeCurrentStatus() {
+        RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
+        /** Serializar o objecto aqui */
+    }
+
+    private void recoverStatus() {
+        RaftStatus raftStatus = null; /** temos de ler o ficheiro para o objeto. */
+        currentTerm = raftStatus.getCurrentTerm();
+        requests = raftStatus.getRequests();
+        votedFor = raftStatus.getVotedFor();
+        logs = raftStatus.getLogs();
+    }
+
     /** Este método define o estado do servidor como lider */
     private void setLeader() {
         Debugger.log("Alterei o meu estado para LEADER!");
-        leaderId = nodeId;
+        updateLeaderId(nodeId);
         role = Role.LEADER;
     }
 
@@ -125,9 +136,15 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         if(role == Role.LEADER) {
             RequestPacket rp = new RequestPacket(RemoteServer.getClientHost(), 1095, op);
             Debugger.log("Recebi o request: " + rp.toString());
+
+            /** depois temos de ver isto. temos dois storeStatus
+             * 1 por causa dos logs e outro por causa dos requests
+             */
             logs.add(new LogEntry(op, currentTerm, key, oldValue, newValue));
+            storeCurrentStatus(); /** <------ */
             Debugger.log("Logs: " + logs.toString());
             requests.add(rp);
+            storeCurrentStatus(); /** <------ */
             processNextRequest();
             boolean brk = false;
             String result = null;
@@ -159,11 +176,12 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     }
 
     /** Regra 2 de All Servers */
-    private void checkTerm(int term) {
+    private void checkTerm(int term, NodeConnectionInfo leaderId) {
         if (term > currentTerm) {
             Debugger.log("term: " + term + " currentTerm: " + currentTerm);
             Debugger.log("Vou alterar o meu estado de " + role.toString() + " para " + Role.FOLLOWER.toString());
             stepDown(term);
+            updateLeaderId(leaderId);
         }
     }
 
@@ -195,7 +213,6 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 			default:
 				res = null;
 				break;
-            
             }
             return res;
         }
@@ -207,13 +224,14 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         /** Regra 1 de All Servers */
         applyToStateMachine();
         /** Regra 2 de All Servers */
-        checkTerm(term);
+        checkTerm(term, leaderId);
         /** Regra 1 e 2 de AppendEntries RPC */
         Debugger.log("Conteudo do log antes do append: " + logs.toString());
         if(prevLogIndex == -1 || (term >= currentTerm && prevLogIndex <= logs.getLastLogIndex() && logs.getTermOfIndex(prevLogIndex) == prevLogTerm)){
             Debugger.log("Vou fazer append de um log!");
             logs.appendLog(entry);
             connection.sendAppendEntriesReply(leaderId, nodeId, true, logs.getLastLogIndex(), -10);
+            storeCurrentStatus();
         } else {
             Debugger.log("logs.getTermOfIndex(prevLogIndex): " + logs.getTermOfIndex(prevLogIndex));
             Debugger.log("prevLogTerm: " + prevLogTerm);
@@ -273,12 +291,13 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     /** Este método recebe os pedidos de votos da camada de ligação */
     public void requestVote(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm) throws RemoteException {
         /** Regra 2 de All Servers */
-        checkTerm(term);
+        checkTerm(term, candidateId);
         /** Regra 2 de RequestVote RPC */
         if(term >= currentTerm && votedFor == null && logs.areMyLogsOutdated(lastLogIndex, lastLogTerm)) {
             Debugger.log("Vou votar no: " + candidateId.toString());
             votedFor = candidateId;
             connection.sendVote(candidateId, true);
+            storeCurrentStatus();
         } else {
             /** Regra 1 de RequestVote RPC */
             Debugger.log("Não vou votar no: " + candidateId.toString());
@@ -357,6 +376,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         currentTerm = term;
         votedFor = null;
         votes = 0;
+        storeCurrentStatus();
     }
 
     /** Após a eleição de um lider é necessário reiniciar os indices matchIndex e nextIndex */
