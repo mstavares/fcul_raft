@@ -8,11 +8,13 @@ import java.util.TimerTask;
 public class TimeManager {
 
     private OnTimeListener timeListener;
+    private SnapshotOnTimeListener snapshotTimeListener;
     private Random random = new Random();
     private Timer timer;
     private boolean heartbeat;
     private Task task;
     private int minTimeout, maxTimeout;
+    private boolean snapshot;
 
     public TimeManager(OnTimeListener timeListener) {
         this.timeListener = timeListener;
@@ -35,6 +37,14 @@ public class TimeManager {
         this.heartbeat = false;
         minTimeout = time;
         maxTimeout = time;
+        resetTimer();
+    }
+    
+    public TimeManager(SnapshotOnTimeListener timeListener, boolean snapshot, int time) {
+    	this.snapshotTimeListener = timeListener;
+    	this.snapshot = snapshot;
+    	minTimeout = 1000 * time;
+        maxTimeout = 1000 * time;
         resetTimer();
     }
 
@@ -61,7 +71,10 @@ public class TimeManager {
     private class Task extends TimerTask {
 
         public void run() {
-            timeListener.timeout(TimeManager.this);
+        	if(snapshot)
+        		snapshotTimeListener.snapshot(TimeManager.this);
+        	else
+        		timeListener.timeout(TimeManager.this);
             resetTimer();
         }
     }

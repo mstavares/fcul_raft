@@ -3,6 +3,7 @@ package server;
 import common.NotLeaderException;
 import common.OnTimeListener;
 import common.OperationType;
+import common.SnapshotOnTimeListener;
 import common.TimeManager;
 import server.interfaces.ClientInterface;
 import server.interfaces.ConnectionInterface;
@@ -27,7 +28,7 @@ import java.util.Map;
  * Esta class é responsável por enviar, receber e interpretar todos os tipos de pedidos,
  * quer sejam dos servidores quer sejam dos clientes.
  */
-public class Node implements ServerInterface, ClientInterface, ConnectionInterface, OnTimeListener {
+public class Node implements ServerInterface, ClientInterface, ConnectionInterface, OnTimeListener, SnapshotOnTimeListener {
 
     private static final String NODE_CONFIG = "NodeConfig.xml";
     private static final String NODES = "Nodes.xml";
@@ -70,6 +71,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         nodeId = new NodeConnectionInfo(map.get("ipAddress"), Integer.parseInt(map.get("port")));
         connection = new Connection(nodesIds,this, nodeId.getPort());
         stateMachine = new StateMachine();
+        new TimeManager(this, true, 10);
     }
 
     /** Este método lê os servidores existentes do ficheiro de configuração */
@@ -80,12 +82,13 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         }
     }
 
-    private void storeCurrentStatus() {
-        RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
+    private void storeCurrentStatus(OperationType op, int term, String key, String oldValue, String newValue) {
+        // RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
         try {
-			new FileManager().writeDatabaseToFile(raftStatus);
+			// new FileManager().writeDatabaseToFile(raftStatus);
+        	new FileManager().appendOperationToLog(op, term, key, oldValue, newValue);
 		} catch (IOException e) {
-			System.out.println("Error storing current status");
+			System.out.println("Error appending operation to log");
 			e.printStackTrace();
 		}
     }
@@ -149,14 +152,10 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             RequestPacket rp = new RequestPacket(RemoteServer.getClientHost(), 1095, op);
             Debugger.log("Recebi o request: " + rp.toString());
 
-            /** depois temos de ver isto. temos dois storeStatus
-             * 1 por causa dos logs e outro por causa dos requests
-             */
             logs.add(new LogEntry(op, currentTerm, key, oldValue, newValue));
-            storeCurrentStatus(); /** <------ */
+            storeCurrentStatus(op,this.currentTerm, key, oldValue, newValue); /** <------ */
             Debugger.log("Logs: " + logs.toString());
             requests.add(rp);
-            storeCurrentStatus(); /** <------ */
             processNextRequest();
             boolean brk = false;
             String result = null;
@@ -255,7 +254,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             Debugger.log("Vou fazer append de um log!");
             logs.appendLog(entry);
             connection.sendAppendEntriesReply(leaderId, nodeId, true, logs.getLastLogIndex(), -10);
-            storeCurrentStatus();
+            // storeCurrentStatus();
         } else {
             Debugger.log("logs.getTermOfIndex(prevLogIndex): " + logs.getTermOfIndex(prevLogIndex));
             Debugger.log("prevLogTerm: " + prevLogTerm);
@@ -321,7 +320,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             Debugger.log("Vou votar no: " + candidateId.toString());
             votedFor = candidateId;
             connection.sendVote(candidateId, true);
-            storeCurrentStatus();
+            // storeCurrentStatus();
         } else {
             /** Regra 1 de RequestVote RPC */
             Debugger.log("Não vou votar no: " + candidateId.toString());
@@ -400,7 +399,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         currentTerm = term;
         votedFor = null;
         votes = 0;
-        storeCurrentStatus();
+        // storeCurrentStatus();
     }
 
     /** Após a eleição de um lider é necessário reiniciar os indices matchIndex e nextIndex */
@@ -410,5 +409,16 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             node.resetMatchIndex();
         }
     }
+
+	@Override
+	public void snapshot(TimeManager timeManager) {
+		RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
+		try {
+			new FileManager().writeDatabaseToFile(raftStatus);
+		} catch (IOException e) {
+			System.out.println("Error storing current status");
+			e.printStackTrace();
+		}
+	}
 
 }
