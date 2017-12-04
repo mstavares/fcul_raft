@@ -92,7 +92,7 @@ public class FullClient {
 			
 			if (sendRequest){
 				try {
-					System.out.print("Server Answer: ");
+					System.out.println("Server Answer: ");
 					System.out.println(con.sendRequest(operation, key, oldValue, newValue) );
 				} catch (RemoteException | ServerNotActiveException e) {
 					System.out.println("Error getting answer from the server.");

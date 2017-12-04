@@ -59,6 +59,8 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     Node() throws RemoteException {
         setFollower();
         readNodesFile();
+        /** código relacionado com snapshots comentado até conseguirmos arranjar uma solução **/
+        /*
         try {
 			recoverStatus();
 		} catch (IOException e) {
@@ -66,12 +68,13 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 			e.printStackTrace();
 			System.exit(-1);
 		}
+		*/
         HashMap<String, String> map = XmlSerializer.readConfig(NODE_CONFIG);
         Debugger.log("A minha config ip: " + map.get("ipAddress") + " porta: " + map.get("port"));
         nodeId = new NodeConnectionInfo(map.get("ipAddress"), Integer.parseInt(map.get("port")));
         connection = new Connection(nodesIds,this, nodeId.getPort());
         stateMachine = new StateMachine();
-        new TimeManager(this, true, 10);
+        // new TimeManager(this, true, 15);
     }
 
     /** Este mÃ©todo lÃª os servidores existentes do ficheiro de configuraÃ§Ã£o */
@@ -84,9 +87,11 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
     private void storeCurrentStatus(OperationType op, int term, String key, String oldValue, String newValue) {
         // RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
+    	Debugger.log("Applying operation to log");
         try {
 			// new FileManager().writeDatabaseToFile(raftStatus);
         	new FileManager().appendOperationToLog(op, term, key, oldValue, newValue);
+        	Debugger.log("Applied operation to log");
 		} catch (IOException e) {
 			System.out.println("Error appending operation to log");
 			e.printStackTrace();
@@ -244,7 +249,8 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
     /** Este mÃ©todo recebe os pedidos de appendEntries da camada de ligaÃ§Ã£o */
     public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit) throws RemoteException {
-        /** Regra 1 de All Servers */
+    	// TODO Isto é mesmo aqui ou dentro do if?
+    	/** Regra 1 de All Servers */
         applyToStateMachine();
         /** Regra 2 de All Servers */
         checkTerm(term, leaderId);
@@ -252,9 +258,10 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         Debugger.log("Conteudo do log antes do append: " + logs.toString());
         if(prevLogIndex == -1 || (term >= currentTerm && prevLogIndex <= logs.getLastLogIndex() && logs.getTermOfIndex(prevLogIndex) == prevLogTerm)){
             Debugger.log("Vou fazer append de um log!");
+            /** Adicionar ao Log **/
             logs.appendLog(entry);
+            storeCurrentStatus(entry.getOp(),entry.getTerm(), entry.getKey(), entry.getOldValue(), entry.getNewValue());
             connection.sendAppendEntriesReply(leaderId, nodeId, true, logs.getLastLogIndex(), -10);
-            // storeCurrentStatus();
         } else {
             Debugger.log("logs.getTermOfIndex(prevLogIndex): " + logs.getTermOfIndex(prevLogIndex));
             Debugger.log("prevLogTerm: " + prevLogTerm);
@@ -412,9 +419,11 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
 	@Override
 	public void snapshot(TimeManager timeManager) {
+		Debugger.log("Initiating Snapshot");
 		RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
 		try {
 			new FileManager().writeDatabaseToFile(raftStatus);
+			Debugger.log("Snapshot Complete");
 		} catch (IOException e) {
 			System.out.println("Error storing current status");
 			e.printStackTrace();
