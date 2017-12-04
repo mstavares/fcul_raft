@@ -5,7 +5,6 @@ import java.rmi.RemoteException;
 import java.rmi.server.ServerNotActiveException;
 import java.util.Scanner;
 
-import client.FullClient.Server;
 import common.OperationType;
 
 /**
@@ -26,8 +25,7 @@ public class AutomatedClient{
 		
 		try {
 			boolean sendRequests = false;
-			Server server = FullClient.getRandomServer();
-			Connection con = new Connection(server.getIp(), server.getPort() );
+			Connection con = new Connection();
 			int count = 0;
 			
 			while(sendRequests){
@@ -56,12 +54,15 @@ public class AutomatedClient{
 		try {
 			String response = con.sendRequest(op, key, oldValue, newValue);
 			System.out.println("Recebi a resposta: " + response);
-		} catch (RemoteException e) {
-			System.out.println("RemoteException");
-			e.printStackTrace();
-		} catch (ServerNotActiveException e) {
-			System.out.println("ServerNotActiveException");
-			e.printStackTrace();
+		} catch (RemoteException | ServerNotActiveException e) {
+			System.out.println("Error getting answer from the server.");
+			System.out.println("Trying to connect to a new server.");
+			//TODO abstrair isto para dentro da connection?
+			try {
+				con = new Connection();
+			} catch (RemoteException | NotBoundException e1) {
+				System.out.println("Failed to connect to a new server.");
+			}
 		}
 	}
 	

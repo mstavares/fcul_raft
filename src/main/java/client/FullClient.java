@@ -4,13 +4,9 @@ package client;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.ServerNotActiveException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Random;
 import java.util.Scanner;
 
 import common.OperationType;
-import utilities.XmlSerializer;
 
 /**
  * A full Raft Client
@@ -27,8 +23,7 @@ public class FullClient {
 		Connection con;
 		
 		try {
-			Server server = getRandomServer();
-			con = new Connection(server.getIp(), server.getPort() );
+			con = new Connection();
 		} catch (RemoteException | NotBoundException e) {
 			System.out.println("Error connecting to the server.");
 			e.printStackTrace();
@@ -96,6 +91,12 @@ public class FullClient {
 					System.out.println(con.sendRequest(operation, key, oldValue, newValue) );
 				} catch (RemoteException | ServerNotActiveException e) {
 					System.out.println("Error getting answer from the server.");
+					System.out.println("Trying to connect to a new server.");
+					try {
+						con = new Connection();
+					} catch (RemoteException | NotBoundException e1) {
+						System.out.println("Failed to connect to a new server.");
+					}
 				}
 			}
 		}
@@ -112,35 +113,6 @@ public class FullClient {
 		System.out.println("4- LIST");
 		System.out.println("5- CAS");
 		System.out.println("0- Exit.");
-    }
-    
-    
-    //TODO maybe move this and the Server object to the Connection class or a new class?
-    public static Server getRandomServer(){
-        HashMap<String, String> map = XmlSerializer.readConfig("Nodes.xml");
-        ArrayList<String> keys = new ArrayList<String>( map.keySet() );
-        Random rd = new Random();
-        String key = keys.get(rd.nextInt(keys.size()));
-        return new Server(key, map.get(key) );
-    }
-    
-    
-    public static class Server{
-    	String ip;
-    	int port;
-    	
-    	public Server(String ip, String port){
-    		this.ip = ip;
-    		this.port = Integer.parseInt(port);
-    	}
-    	
-    	public String getIp(){
-    		return ip;
-    	}
-    	
-    	public int getPort(){
-    		return port;
-    	}
     }
 
 }

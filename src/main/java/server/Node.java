@@ -39,6 +39,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     private Connection connection;
     private Role role;
     private int votes;
+    private FileManager fileManager;
 
     /** Persistent state on all servers */
     private ArrayList<RequestPacket> requests = new ArrayList<RequestPacket>();
@@ -74,6 +75,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         nodeId = new NodeConnectionInfo(map.get("ipAddress"), Integer.parseInt(map.get("port")));
         connection = new Connection(nodesIds,this, nodeId.getPort());
         stateMachine = new StateMachine();
+        fileManager = new FileManager();
         // new TimeManager(this, true, 15);
     }
 
@@ -90,7 +92,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     	Debugger.log("Applying operation to log");
         try {
 			// new FileManager().writeDatabaseToFile(raftStatus);
-        	new FileManager().appendOperationToLog(op, term, key, oldValue, newValue);
+        	fileManager.appendOperationToLog(op, term, key, oldValue, newValue);
         	Debugger.log("Applied operation to log");
 		} catch (IOException e) {
 			System.out.println("Error appending operation to log");
@@ -422,7 +424,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 		Debugger.log("Initiating Snapshot");
 		RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
 		try {
-			new FileManager().writeDatabaseToFile(raftStatus);
+			fileManager.writeDatabaseToFile(raftStatus);
 			Debugger.log("Snapshot Complete");
 		} catch (IOException e) {
 			System.out.println("Error storing current status");

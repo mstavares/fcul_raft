@@ -6,8 +6,12 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.ServerNotActiveException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Random;
 
 import utilities.Debugger;
+import utilities.XmlSerializer;
 import common.NotLeaderException;
 import common.OperationType;
 import server.interfaces.ClientInterface;
@@ -17,8 +21,13 @@ public class Connection{
 	private ClientInterface stub;
 	private Registry registry;
 	
-	public Connection(String host, int port) throws RemoteException, NotBoundException {
-		registry = LocateRegistry.getRegistry(host, port);
+	
+	/**
+	 * Creates a new connection to a random server
+	 */
+	public Connection() throws RemoteException, NotBoundException {
+		Server server = getRandomServer();
+		registry = LocateRegistry.getRegistry( server.getIp(), server.getPort() );
         stub = (ClientInterface) registry.lookup("raft");
 	}
 	
@@ -47,5 +56,33 @@ public class Connection{
 			e.printStackTrace();
 		}
 	}
+	
+	
+    private static Server getRandomServer(){
+        HashMap<String, String> map = XmlSerializer.readConfig("Nodes.xml");
+        ArrayList<String> keys = new ArrayList<String>( map.keySet() );
+        Random rd = new Random();
+        String key = keys.get(rd.nextInt(keys.size()));
+        return new Server(key, map.get(key) );
+    }
+    
+    
+    private static class Server{
+    	String ip;
+    	int port;
+    	
+    	public Server(String ip, String port){
+    		this.ip = ip;
+    		this.port = Integer.parseInt(port);
+    	}
+    	
+    	public String getIp(){
+    		return ip;
+    	}
+    	
+    	public int getPort(){
+    		return port;
+    	}
+    }
 	
 }
