@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Esta class é responsável por enviar, receber e interpretar todos os tipos de pedidos,
+ * Esta class Ã© responsÃ¡vel por enviar, receber e interpretar todos os tipos de pedidos,
  * quer sejam dos servidores quer sejam dos clientes.
  */
 public class Node implements ServerInterface, ClientInterface, ConnectionInterface, OnTimeListener, SnapshotOnTimeListener {
@@ -65,7 +65,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     Node() throws RemoteException {
         setFollower();
         readNodesFile();
-        /** c�digo relacionado com snapshots comentado at� conseguirmos arranjar uma solu��o **/
+        /** código relacionado com snapshots comentado até conseguirmos arranjar uma solução **/
         /*
         try {
 			recoverStatus();
@@ -84,7 +84,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         // new TimeManager(this, true, 15);
     }
 
-    /** Este método lê os servidores existentes do ficheiro de configuração */
+    /** Este mÃ©todo lÃª os servidores existentes do ficheiro de configuraÃ§Ã£o */
     private void readNodesFile() {
         HashMap<String, String> map = XmlSerializer.readConfig(NODES);
         for (Map.Entry<String, String> e : map.entrySet()) {
@@ -113,21 +113,21 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         logs = raftStatus.getLogs();
     }
 
-    /** Este método define o estado do servidor como lider */
+    /** Este mÃ©todo define o estado do servidor como lider */
     private void setLeader() {
         Debugger.log("Alterei o meu estado para LEADER!");
         updateLeaderId(nodeId);
         role = Role.LEADER;
     }
 
-    /** Este método define o estado do servidor como candidato */
+    /** Este mÃ©todo define o estado do servidor como candidato */
     private void setCandidate() {
         Debugger.log("Alterei o meu estado para CANDIDATE!");
         leaderId = null;
         role = Role.CANDIDATE;
     }
 
-    /** Este método define o estado do servidor como follower */
+    /** Este mÃ©todo define o estado do servidor como follower */
     private void setFollower() {
         Debugger.log("Alterei o meu estado para FOLLOWER!");
         role = Role.FOLLOWER;
@@ -158,7 +158,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         }
     }
 
-    /** Este método recebe os pedidos dos clientes provenientes da camada de ligação. 
+    /** Este mÃ©todo recebe os pedidos dos clientes provenientes da camada de ligaÃ§Ã£o. 
      * @throws ElectingException */
     public String request(OperationType op, String key, String oldValue, String newValue) throws ServerNotActiveException, NotLeaderException{
         if(role == Role.LEADER) {
@@ -228,29 +228,29 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             switch(last.getOp()) {
 			case CAS:
 				res = stateMachine.cas(last.getKey(), last.getOldValue(), last.getNewValue());
-				Debugger.log("Adicionei a opera��o CAS � state Machine");
+				Debugger.log("Adicionei a operação CAS à state Machine");
 				break;
 			case DEL:
 				stateMachine.del(last.getKey());
 				res = "Valor Removido";
-				Debugger.log("Adicionei a opera��o DEL � state Machine");
+				Debugger.log("Adicionei a operação DEL à state Machine");
 				break;
 			case GET:
 				res = stateMachine.get(last.getKey());
-				Debugger.log("Adicionei a opera��o GET � state Machine");
+				Debugger.log("Adicionei a operação GET à state Machine");
 				break;
 			case LIST:
 				res = stateMachine.list();
-				Debugger.log("Adicionei a opera��o LIST � state Machine");
+				Debugger.log("Adicionei a operação LIST à state Machine");
 				break;
 			case PUT:
 				stateMachine.put(last.getKey(), last.getNewValue());
 				res = "Valor inserido";
-				Debugger.log("Adicionei a opera��o PUT � state Machine");
+				Debugger.log("Adicionei a operação PUT à state Machine");
 				break;
 			default:
 				res = null;
-				Debugger.log("Opera��o Inv�lida");
+				Debugger.log("Operação Inválida");
 				break;
             }
             Debugger.log(res);
@@ -261,13 +261,14 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
     /** Este método recebe os pedidos de appendEntries da camada de ligação */
     public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit) throws RemoteException {
-    	// TODO Isto � mesmo aqui ou dentro do if?
-    	/** Regra 1 de All Servers */
+        // TODO Isto � mesmo aqui ou dentro do if?
+        /** Regra 1 de All Servers */
         applyToStateMachine();
         /** Regra 2 de All Servers */
         checkTerm(term, leaderId);
         /** Regra 1 e 2 de AppendEntries RPC */
         Debugger.log("Conteudo do log antes do append: " + logs.toString());
+        Debugger.log("Termos! -> recebido: " + term + " atual da maquina: " + currentTerm);
         if(prevLogIndex == -1 || (term >= currentTerm && prevLogIndex <= logs.getLastLogIndex() && logs.getTermOfIndex(prevLogIndex) == prevLogTerm)){
             Debugger.log("Vou fazer append de um log!");
             /** Adicionar ao Log **/
@@ -292,18 +293,20 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     }
 
     public void appendEntriesReply(NodeConnectionInfo replier, boolean success, int logIndex, int prevLogTerm) throws RemoteException, NotBoundException {
-        Debugger.log("Fez append? " + success);
+    	Debugger.log("Fez append? " + success);
         NodeConnectionInfo node = findNode(replier);
         updateNodeIndexes(node, success);
         if(success) {
-            logs.addReplicatedNode(node, logIndex);
-            if(logs.getNumberOfReplicatedNodes(logIndex) + 1 > getMajority() && logIndex >= commitIndex) {            	
-            	if(processingRequest != null) {
-            		Debugger.log("Got Majority");
-            		requestMap.put(processingRequest.getClientId(), true);
-            	} else {
-            		Debugger.log("Accepted delayed entry");
-            	}
+            if(logIndex >= commitIndex) {
+                logs.addReplicatedNode(node, logIndex);
+                if (logs.getNumberOfReplicatedNodes(logIndex) + 1 > getMajority() && logIndex >= commitIndex) {
+                    if (processingRequest != null) {
+                        Debugger.log("Got Majority");
+                        requestMap.put(processingRequest.getClientId(), true);
+                    } else {
+                        Debugger.log("Accepted delayed entry");
+                    }
+                }
             }
         } else {
             Debugger.log("Append entries rejeitado.");
@@ -319,7 +322,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         Debugger.log("O matchIndex foi atualizado para: " + node.getMatchIndex() + " e o nextIndex para: " + node.getNextIndex());
     }
 
-    /** Este método recebe os pedidos de votos da camada de ligação */
+    /** Este mÃ©todo recebe os pedidos de votos da camada de ligaÃ§Ã£o */
     public void requestVote(int term, NodeConnectionInfo candidateId, int lastLogIndex, int lastLogTerm) throws RemoteException {
         /** Regra 2 de All Servers */
         checkTerm(term, candidateId);
@@ -331,12 +334,12 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             storeCurrentStatus();
         } else {
             /** Regra 1 de RequestVote RPC */
-            Debugger.log("Não vou votar no: " + candidateId.toString());
+            Debugger.log("NÃ£o vou votar no: " + candidateId.toString());
             connection.sendVote(candidateId, false);
         }
     }
 
-    /** Este método recebe a resposta aos pedidos de votos */
+    /** Este mÃ©todo recebe a resposta aos pedidos de votos */
     public void onVoteReceive(boolean vote) {
         if(role == Role.CANDIDATE) {
             if (vote)
@@ -359,8 +362,8 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         return (nodesIds.size() + 1) / 2;
     }
 
-    /** Este método é invocado quando um timeout ocorre. É necessário
-     * verificar que tipo de timeout é, se de heartbeat ou de eleições */
+    /** Este mÃ©todo Ã© invocado quando um timeout ocorre. Ã‰ necessÃ¡rio
+     * verificar que tipo de timeout Ã©, se de heartbeat ou de eleiÃ§Ãµes */
     public void timeout(TimeManager timeManager) {
         if (timeManager.isHeartbeat()) {
             sendHeartbeat();
@@ -371,13 +374,13 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         }
     }
 
-    /** Este método envia um heartbeat para os outros servidores */
+    /** Este mÃ©todo envia um heartbeat para os outros servidores */
     private void sendHeartbeat() {
         /** Regra 1 de Leaders */
         sendAppendEntries();
     }
 
-    /** Este método trata da iniciação dos processos de eleições */
+    /** Este mÃ©todo trata da iniciaÃ§Ã£o dos processos de eleiÃ§Ãµes */
     private void electionsTimeout() {
         /** Regra 1 de Candidates */
         Debugger.log("electionsTimeout");
@@ -394,9 +397,9 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         }
     }
 
-    /** Este método é invocado durante um processo de eleição em que
+    /** Este mÃ©todo Ã© invocado durante um processo de eleiÃ§Ã£o em que
      * este servidor recebe um requestVote de um candidato cujo term
-     * é superior ao dele.
+     * Ã© superior ao dele.
      */
     private void stepDown(int term) {
         /** Regra 1.3 de Candidates */
@@ -410,7 +413,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         storeCurrentStatus();
     }
 
-    /** Após a eleição de um lider é necessário reiniciar os indices matchIndex e nextIndex */
+    /** ApÃ³s a eleiÃ§Ã£o de um lider Ã© necessÃ¡rio reiniciar os indices matchIndex e nextIndex */
     private void initializeIndexes() {
         Debugger.log("Vou reinicializar os indices de cada follower");
         for(NodeConnectionInfo node : nodesIds) {
