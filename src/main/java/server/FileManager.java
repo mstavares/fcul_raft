@@ -4,6 +4,7 @@ package server;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -118,11 +119,42 @@ class FileManager {
         database.getLogs().add(logEntry);
     }
     
+    private void processLine(Log logs, String[] parsedData) {
+    	OperationType op = OperationType.valueOf(parsedData[0]);
+        int term = Integer.parseInt(parsedData[1]);
+        String key = parsedData[2];
+        String oldValue = parsedData[3];
+        String newValue = parsedData[4];
+        
+        if(key.equals("null"))
+        	key = null;
+        
+        if(oldValue.equals("null"))
+        	oldValue = null;
+        
+        if(newValue.equals("null"))
+        	newValue = null;
+        
+        logs.add(new LogEntry(op, term, key, oldValue, newValue));
+    }
+    
     
     public void appendOperationToLog(OperationType op, int term, String key, String oldValue, String newValue) throws IOException {
     	writeToLog(op + SEP_STR + term + SEP_STR + key + SEP_STR + oldValue + SEP_STR + newValue);
     }
     
+    public void recoverStatusFromLog(Log logs) throws IOException {
+    	FileReader fileReader = new FileReader(LOG_PATH);
+        BufferedReader bufRead = new BufferedReader(fileReader);
+        String line = null;
+        while ((line = bufRead.readLine()) != null) {
+            String[] parsedData = line.split(SEP_STR);
+            processLine(logs, parsedData);
+        }
+        bufRead.close();
+        
+        Debugger.log("Finished updating Log with logfile");
+    }
     
     /**
      * Updates the database structure given with the log entries.
@@ -143,6 +175,7 @@ class FileManager {
         Debugger.log("Finished updating database with log");
         writeDatabaseToFile(database);
     }
+    
 
     
 	private void existsDatabaseFolder() {

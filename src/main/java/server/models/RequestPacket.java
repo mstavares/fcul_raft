@@ -10,26 +10,23 @@ public class RequestPacket {
     private static int requestIdGenerator = 0;
     private Timestamp timestamp;
     private String key, oldValue, newValue;
-    private String ip;
-    private int port;
     private OperationType op;
-    private int id;
+    private int id, clientId;
 
-    public RequestPacket(String ip, int port, OperationType op) {
+    public RequestPacket(OperationType op, int clientId) {
         timestamp = new Timestamp(System.currentTimeMillis());
         id = requestIdGenerator++;
         this.op = op;
-        this.ip = ip;
-        this.port = port;
+        this.clientId = clientId;
     }
 
-    public RequestPacket(String ip, int port, OperationType op, String key) {
-        this(ip, port, op);
+    public RequestPacket(OperationType op, int clientId, String key) {
+        this(op, clientId);
         this.key = key;
     }
 
-    public RequestPacket(String ip, int port, OperationType op, String key, String oldValue, String newValue) {
-        this(ip, port, op, key);
+    public RequestPacket(OperationType op, int clientId, String key, String oldValue, String newValue) {
+        this(op, clientId, key);
         this.oldValue = oldValue;
     	this.newValue = newValue;
     }
@@ -54,20 +51,15 @@ public class RequestPacket {
     	return oldValue;
     }
 
-    public String getIp() {
-        return ip;
-    }
-    
-    public int getPort() {
-    	return port;
-    }
-
     public int getId() {
         return id;
+    }
+    public int getClientId() {
+    	return clientId;
     }
 
     @Override
     public String toString() {
-        return "comando: " + op + " de: " + ip + " com o id: " + id;
+        return "comando: " + op + " com o id: " + id;
     }
 }

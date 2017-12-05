@@ -1,5 +1,6 @@
 package server.interfaces;
 
+import common.ElectingException;
 import common.NotLeaderException;
 import common.OperationType;
 

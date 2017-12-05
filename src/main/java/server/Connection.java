@@ -1,5 +1,6 @@
 package server;
 
+import common.ElectingException;
 import common.NotLeaderException;
 import common.OnTimeListener;
 import common.OperationType;
@@ -66,8 +67,9 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
         }
     }
 
-    /** Este método recebe os pedidos RMI do cliente */
-    public String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException {
+    /** Este método recebe os pedidos RMI do cliente 
+     * @throws ElectingException */
+    public String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException{
         return clientInterface.request(op, key, oldValue, newValue);
     }
 

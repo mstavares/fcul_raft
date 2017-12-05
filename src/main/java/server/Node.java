@@ -1,5 +1,6 @@
 package server;
 
+import common.ElectingException;
 import common.NotLeaderException;
 import common.OnTimeListener;
 import common.OperationType;
@@ -23,6 +24,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Esta class é responsável por enviar, receber e interpretar todos os tipos de pedidos,
@@ -54,7 +57,9 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     private int commitIndex = -1;
     private int lastApplied = -1;
     
-    private boolean majority = false;
+    // private boolean majority = false;
+    private ConcurrentHashMap<Integer, Boolean> requestMap = new ConcurrentHashMap<>();
+    private AtomicInteger idGen = new AtomicInteger();
     
 
     Node() throws RemoteException {
@@ -87,12 +92,12 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         }
     }
 
-    private void storeCurrentStatus(OperationType op, int term, String key, String oldValue, String newValue) {
-        // RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
+    private void storeCurrentStatus() {
+        RaftStatus raftStatus = new RaftStatus(requests, votedFor, currentTerm, logs);
     	Debugger.log("Applying operation to log");
         try {
-			// new FileManager().writeDatabaseToFile(raftStatus);
-        	fileManager.appendOperationToLog(op, term, key, oldValue, newValue);
+			this.fileManager.writeDatabaseToFile(raftStatus);
+        	// fileManager.appendOperationToLog(op, term, key, oldValue, newValue);
         	Debugger.log("Applied operation to log");
 		} catch (IOException e) {
 			System.out.println("Error appending operation to log");
@@ -153,35 +158,37 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         }
     }
 
-    /** Este método recebe os pedidos dos clientes provenientes da camada de ligação. */
-    public String request(OperationType op, String key, String oldValue, String newValue) throws ServerNotActiveException, NotLeaderException {
+    /** Este método recebe os pedidos dos clientes provenientes da camada de ligação. 
+     * @throws ElectingException */
+    public String request(OperationType op, String key, String oldValue, String newValue) throws ServerNotActiveException, NotLeaderException{
         if(role == Role.LEADER) {
-            RequestPacket rp = new RequestPacket(RemoteServer.getClientHost(), 1095, op);
+        	int id = idGen.incrementAndGet();
+        	requestMap.put(id, false);
+            RequestPacket rp = new RequestPacket(op, id);
             Debugger.log("Recebi o request: " + rp.toString());
 
             logs.add(new LogEntry(op, currentTerm, key, oldValue, newValue));
-            storeCurrentStatus(op,this.currentTerm, key, oldValue, newValue); /** <------ */
+            storeCurrentStatus();
             Debugger.log("Logs: " + logs.toString());
             requests.add(rp);
             processNextRequest();
-            boolean brk = false;
             String result = null;
-            while(!brk) {
-            	// && processingRequest == rp
-            	Debugger.log("Iterating");
-            	if(majority) {
-            		Debugger.log("Got all majority, applying to statemachine");
-            		majority = false;
-            		brk = true;
-                    Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
-                    commitIndex++;
-                    result = applyToStateMachine();
-                    Debugger.log("Repplying with :" + result);
-                    requestProcessed();
-                    processNextRequest();
-            	}
-                
+            while(requestMap.get(id) == false) {
+            	Debugger.log("Waiting for majority");
+            	try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
             }
+            requestMap.remove(id);
+    		Debugger.log("Got all majority, applying to statemachine");
+            Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
+            commitIndex++;
+            result = applyToStateMachine();
+            Debugger.log("Replying with :" + result);
+            requestProcessed();
+            processNextRequest();        	
             return result;
 
         } else {
@@ -189,7 +196,9 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             	Debugger.log("Redirected client to leader");
                 throw new NotLeaderException(leaderId.getIpAddress()+ ":" +leaderId.getPort());
             } else {
-                return "O raft esta neste momento a eleger o lider.";
+            	Debugger.log("Electing leader");
+                // throw new ElectingException("Raft is Electing the Leader");
+            	return "electing";
             }
         }
     }
@@ -244,6 +253,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 				Debugger.log("Opera��o Inv�lida");
 				break;
             }
+            Debugger.log(res);
             return res;
         }
         return null;
@@ -262,7 +272,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             Debugger.log("Vou fazer append de um log!");
             /** Adicionar ao Log **/
             logs.appendLog(entry);
-            storeCurrentStatus(entry.getOp(),entry.getTerm(), entry.getKey(), entry.getOldValue(), entry.getNewValue());
+            storeCurrentStatus();
             connection.sendAppendEntriesReply(leaderId, nodeId, true, logs.getLastLogIndex(), -10);
         } else {
             Debugger.log("logs.getTermOfIndex(prevLogIndex): " + logs.getTermOfIndex(prevLogIndex));
@@ -287,29 +297,18 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         updateNodeIndexes(node, success);
         if(success) {
             logs.addReplicatedNode(node, logIndex);
-            if(logs.getNumberOfReplicatedNodes(logIndex) + 1 > getMajority() && logIndex >= commitIndex) {
-            	/*
-            	Debugger.log("Incrementar o commitIndex de: " + commitIndex + " para: " + (commitIndex + 1));
-                commitIndex++;
-                repyToClient(replyToStateMachine());
-                requestProcessed();
-                processNextRequest();
-            	 */
-            	Debugger.log("Got Majority");
-            	majority = true;
+            if(logs.getNumberOfReplicatedNodes(logIndex) + 1 > getMajority() && logIndex >= commitIndex) {            	
+            	if(processingRequest != null) {
+            		Debugger.log("Got Majority");
+            		requestMap.put(processingRequest.getClientId(), true);
+            	} else {
+            		Debugger.log("Accepted delayed entry");
+            	}
             }
         } else {
             Debugger.log("Append entries rejeitado.");
         }
     }
-    
-    /*
-    private void replyToClient(String result) throws RemoteException, NotBoundException {
-    	Registry r = LocateRegistry.getRegistry(processingRequest.getIp(), processingRequest.getPort());
-    	ReplyInterface stub = (ReplyInterface) r.lookup("raft");
-    	stub.reply(result);
-    }
-    */
 
     private void updateNodeIndexes(NodeConnectionInfo node, boolean success) {
         if(success) {
@@ -329,7 +328,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
             Debugger.log("Vou votar no: " + candidateId.toString());
             votedFor = candidateId;
             connection.sendVote(candidateId, true);
-            // storeCurrentStatus();
+            storeCurrentStatus();
         } else {
             /** Regra 1 de RequestVote RPC */
             Debugger.log("Não vou votar no: " + candidateId.toString());
@@ -408,7 +407,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
         currentTerm = term;
         votedFor = null;
         votes = 0;
-        // storeCurrentStatus();
+        storeCurrentStatus();
     }
 
     /** Após a eleição de um lider é necessário reiniciar os indices matchIndex e nextIndex */
