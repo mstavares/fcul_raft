@@ -11,5 +11,5 @@ import java.rmi.server.ServerNotActiveException;
 /** Interface RMI do cliente -> servidor, servidor -> cliente */
 public interface ClientInterface extends Remote {
 
-    String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException;
+    String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException, ElectingException;
 }

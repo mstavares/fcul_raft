@@ -26,8 +26,10 @@ import java.util.List;
  * Serve para enviar e receber pedidos.
  */
 public class Connection extends UnicastRemoteObject implements ClientInterface, ServerInterface, OnTimeListener {
-
-    private static final String SERVICE_NAME = "raft";
+	
+	private static final long serialVersionUID = -6470055805559967731L;
+	
+	private static final String SERVICE_NAME = "raft";
     private TimeManager electionTimer, heartbeatTimer;
     private ConnectionInterface connectionInterface;
     private ServerInterface serverInterface;
@@ -69,7 +71,7 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
 
     /** Este método recebe os pedidos RMI do cliente 
      * @throws ElectingException */
-    public String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException{
+    public String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException, ElectingException{
         return clientInterface.request(op, key, oldValue, newValue);
     }
 

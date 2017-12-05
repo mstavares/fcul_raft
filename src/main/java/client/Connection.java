@@ -12,6 +12,7 @@ import java.util.Random;
 
 import utilities.Debugger;
 import utilities.XmlSerializer;
+import common.ElectingException;
 import common.NotLeaderException;
 import common.OperationType;
 import server.interfaces.ClientInterface;
@@ -36,10 +37,18 @@ public class Connection{
 		try {
 			return stub.request(op, key, oldValue, newValue);
 		} catch (NotLeaderException e) {
-			Debugger.log("O node que respondeu nao e lider");
+			Debugger.log("O node que respondeu nao é lider");
 			Debugger.log("Vou reenviar o pedido para: " + e.getMessage());
 			String[] arr = e.getMessage().split(":");
 			redirectToLeader(arr[0], Integer.parseInt(arr[1]));
+			return sendRequest(op, key, oldValue, newValue);
+		} catch (ElectingException e) {
+			Debugger.log("Está a occurrer uma eleição. Vamos tentar novamente dentro de 15 segundo.");
+			try {
+				Thread.sleep(15000);
+			} catch (InterruptedException e1) {
+				e1.printStackTrace();
+			}
 			return sendRequest(op, key, oldValue, newValue);
 		}
 	}
