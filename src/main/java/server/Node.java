@@ -18,7 +18,6 @@ import utilities.*;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -106,7 +105,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
     }
 
     private void recoverStatus() throws IOException {
-        RaftStatus raftStatus = new FileManager().restoreDatabase();
+        RaftStatus raftStatus = fileManager.restoreDatabase();
         currentTerm = raftStatus.getCurrentTerm();
         requests = raftStatus.getRequests();
         votedFor = raftStatus.getVotedFor();
@@ -160,7 +159,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
 
     /** Este mÃ©todo recebe os pedidos dos clientes provenientes da camada de ligaÃ§Ã£o. 
      * @throws ElectingException */
-    public String request(OperationType op, String key, String oldValue, String newValue) throws ServerNotActiveException, NotLeaderException{
+    public String request(OperationType op, String key, String oldValue, String newValue) throws ServerNotActiveException, NotLeaderException, ElectingException{
         if(role == Role.LEADER) {
         	int id = idGen.incrementAndGet();
         	requestMap.put(id, false);
@@ -197,8 +196,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
                 throw new NotLeaderException(leaderId.getIpAddress()+ ":" +leaderId.getPort());
             } else {
             	Debugger.log("Electing leader");
-                // throw new ElectingException("Raft is Electing the Leader");
-            	return "electing";
+                throw new ElectingException("Raft is Electing the Leader");
             }
         }
     }
