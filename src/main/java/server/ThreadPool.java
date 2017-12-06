@@ -140,6 +140,7 @@ public class ThreadPool {
                 stub.requestVote(term, myId, logIndex, logTerm);
             } catch (RemoteException e) {
                 Debugger.log("Nao consegui ligar ao ip: " + connectionId.getIpAddress() + " com a porta: " + connectionId.getPort());
+                //e.printStackTrace();
             } catch (NotBoundException e) {
                 e.printStackTrace();
             }

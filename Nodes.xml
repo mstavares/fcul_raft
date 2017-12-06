@@ -2,7 +2,11 @@
 <java version="1.8.0_131" class="java.beans.XMLDecoder">
  <object class="java.util.HashMap">
   <void method="put">
-   <string>192.168.1.130</string>
+   <string>192.168.56.101</string>
+   <string>1099</string>
+  </void>
+  <void method="put">
+   <string>192.168.56.102</string>
    <string>1099</string>
   </void>
  </object>

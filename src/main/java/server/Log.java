@@ -5,6 +5,7 @@ import server.models.NodeConnectionInfo;
 import utilities.Debugger;
 
 import java.io.Serializable;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 
 /** Esta classe encapsula o registo de logs dos servidores.
@@ -78,9 +79,40 @@ public class Log implements Serializable {
         return getTermOfIndex(fetchPrevLogIndexToSend(node));
     }
 
-    void appendLog(LogEntry newEntry) {
+    void appendLog(LogEntry newEntry, int i) {
         Debugger.log("appendLog: " + newEntry.toString());
-        entries.add(newEntry);
+        try {
+            entries.get(i + 1);
+            Debugger.log("vou reescrever");
+            entries.set(i + 1, newEntry);
+        } catch (IndexOutOfBoundsException e) {
+            Debugger.log("vou adicionar");
+            entries.add(newEntry);
+        }
+
+        //entries.add(newEntry);
+        //entries.set(i + 1, newEntry);
+
+        /*
+        Debugger.log("appendLog: " + newEntry.toString());
+        if(!duplicated(newEntry))
+            entries.add(newEntry);
+        else
+            Debugger.log("--> DUPLICADO <--");
+        */
+
+    }
+
+    public boolean duplicated(LogEntry newEntry) {
+        for(LogEntry logEntry : entries) {
+            if(logEntry.getTimestamp().equals(newEntry.getTimestamp())) {
+                Debugger.log("1-> Antigo: " + logEntry.getTimestamp() + " novo: " + newEntry.getTimestamp());
+                Debugger.log(newEntry.toString());
+                return true;
+            }
+        }
+        Debugger.log("2-> " + newEntry.toString());
+        return false;
     }
 
     @Override
