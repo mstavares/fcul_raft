@@ -26,10 +26,8 @@ import java.util.List;
  * Serve para enviar e receber pedidos.
  */
 public class Connection extends UnicastRemoteObject implements ClientInterface, ServerInterface, OnTimeListener {
-	
-	private static final long serialVersionUID = -6470055805559967731L;
-	
-	private static final String SERVICE_NAME = "raft";
+
+    private static final String SERVICE_NAME = "raft";
     private TimeManager electionTimer, heartbeatTimer;
     private ConnectionInterface connectionInterface;
     private ServerInterface serverInterface;
@@ -71,16 +69,17 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
 
     /** Este método recebe os pedidos RMI do cliente 
      * @throws ElectingException */
-    public String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException, ElectingException{
+    public String request(OperationType op, String key, String oldValue, String newValue) throws RemoteException, ServerNotActiveException, NotLeaderException{
         return clientInterface.request(op, key, oldValue, newValue);
     }
 
     /** Este método envia os logs para os outros servidores */
     public void sendAppendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit, NodeConnectionInfo connectionId) {
-        if(entry == null)
-            Debugger.log("Vou enviar um heartbeat");
-        else
-            Debugger.log(entry.toString());
+        if(entry == null) {
+            String teste;
+            //Debugger.log("Vou enviar um heartbeat para " + connectionId.toString());
+        } else
+            Debugger.log("Vou enviar " + entry.toString() + " para " + connectionId.toString());
         threadPool.sendAppendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit, connectionId);
     }
 
@@ -88,10 +87,10 @@ public class Connection extends UnicastRemoteObject implements ClientInterface, 
      *  Se o pedido vier com o entries a null quer dizer que é um heartbeat
      */
     public void appendEntries(int term, NodeConnectionInfo leaderId, int prevLogIndex, int prevLogTerm, LogEntry entry, int leaderCommit) throws RemoteException, ServerNotActiveException {
-        Debugger.log("Recebi um appendEntries de: " + getClientHost());
+        //Debugger.log("Recebi um appendEntries de: " + getClientHost());
         connectionInterface.updateLeaderId(leaderId);
         electionTimer.resetTimer();
-        if(entry != null)
+        //if(entry != null)
             serverInterface.appendEntries(term, leaderId, prevLogIndex, prevLogTerm, entry, leaderCommit);
     }
 

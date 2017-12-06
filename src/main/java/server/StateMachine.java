@@ -39,4 +39,9 @@ public class StateMachine {
         return x;
     }
 
+    @Override
+    public String toString() {
+        return list();
+    }
+
 }
