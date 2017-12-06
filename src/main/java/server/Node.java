@@ -297,6 +297,7 @@ public class Node implements ServerInterface, ClientInterface, ConnectionInterfa
                 Debugger.log("Vou fazer append de um log!");
                 /** Adicionar ao Log **/
                 logs.appendLog(entry, prevLogIndex);
+                Debugger.log("passei");
                 //storeCurrentStatus();
                 connection.sendAppendEntriesReply(leaderId, nodeId, true, logs.getLastLogIndex(), -10);
             } else {

@@ -80,14 +80,26 @@ public class Log implements Serializable {
     }
 
     void appendLog(LogEntry newEntry, int i) {
-        //Debugger.log("appendLog: " + newEntry.toString());
-        //entries.add(newEntry);
+        Debugger.log("appendLog: " + newEntry.toString());
+        try {
+            entries.get(i + 1);
+            Debugger.log("vou reescrever");
+            entries.set(i + 1, newEntry);
+        } catch (IndexOutOfBoundsException e) {
+            Debugger.log("vou adicionar");
+            entries.add(newEntry);
+        }
 
+        //entries.add(newEntry);
+        //entries.set(i + 1, newEntry);
+
+        /*
         Debugger.log("appendLog: " + newEntry.toString());
         if(!duplicated(newEntry))
             entries.add(newEntry);
         else
             Debugger.log("--> DUPLICADO <--");
+        */
 
     }
 
