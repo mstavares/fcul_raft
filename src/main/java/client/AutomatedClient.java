@@ -2,7 +2,6 @@ package client;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-import java.rmi.server.ServerNotActiveException;
 import java.util.Scanner;
 
 import common.OperationType;
@@ -51,19 +50,8 @@ public class AutomatedClient{
 	
 	private static void sendRequest(Connection con, OperationType op, String key, String oldValue, String newValue) {
 		System.out.println("Vou enviar o pedido: " + op + " " + key);
-		try {
-			String response = con.sendRequest(op, key, oldValue, newValue);
-			System.out.println("Recebi a resposta: " + response);
-		} catch (RemoteException | ServerNotActiveException e) {
-			System.out.println("Error getting answer from the server.");
-			System.out.println("Trying to connect to a new server.");
-			//TODO abstrair isto para dentro da connection?
-			try {
-				con = new Connection();
-			} catch (RemoteException | NotBoundException e1) {
-				System.out.println("Failed to connect to a new server.");
-			}
-		}
+		String response = con.sendRequest(op, key, oldValue, newValue);
+		System.out.println("Recebi a resposta: " + response);
 	}
 	
 }

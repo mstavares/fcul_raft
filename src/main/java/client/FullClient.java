@@ -3,7 +3,6 @@ package client;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-import java.rmi.server.ServerNotActiveException;
 import java.util.Scanner;
 
 import common.OperationType;
@@ -86,18 +85,9 @@ public class FullClient {
 			}
 			
 			if (sendRequest){
-				try {
-					System.out.println("Server Answer: ");
-					System.out.println(con.sendRequest(operation, key, oldValue, newValue) );
-				} catch (RemoteException | ServerNotActiveException e) {
-					System.out.println("Error getting answer from the server.");
-					System.out.println("Trying to connect to a new server.");
-					try {
-						con = new Connection();
-					} catch (RemoteException | NotBoundException e1) {
-						System.out.println("Failed to connect to a new server.");
-					}
-				}
+				System.out.println("Server Answer: ");
+				System.out.println(con.sendRequest(operation, key, oldValue, newValue) );
+
 			}
 		}
 		
