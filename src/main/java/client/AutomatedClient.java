@@ -23,7 +23,7 @@ public class AutomatedClient{
 		int requestInterval = sc.nextInt() * 1000;
 		
 		try {
-			boolean sendRequests = false;
+			boolean sendRequests = true;
 			Connection con = new Connection();
 			int count = 0;
 			
